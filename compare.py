@@ -6,6 +6,14 @@ import argparse
 import itertools
 import collections
 
+# This script computes, row-wise based on a join key in field 0, the
+# intersections of all possible combinations of the input files
+# Input format: TSV e.g.
+#     2019-05-14	8.8.8.8;8.8.4.4;8.8.8.8
+# Output format: TSV e.g.
+#     key	sample1.tsv	sample2.tsv	sample1.tsv;sample2.tsv
+#     2019-05-14	2	3	1
+
 parser = argparse.ArgumentParser()
 parser.add_argument("infiles", nargs="*", type=argparse.FileType("r"))
 parser.add_argument("--delimiter", "-d", default="\t",
@@ -55,7 +63,8 @@ combos = all_combinations(groups.keys())
 
 # Output writer
 outfields = ['key']+[ARGS.inner_delimiter.join(combo) for combo in combos]
-writer = csv.DictWriter(sys.stdout, fieldnames=outfields, delimiter=ARGS.delimiter)
+writer = csv.DictWriter(sys.stdout, fieldnames=outfields,
+    delimiter=ARGS.delimiter, dialect=csv.unix_dialect)
 writer.writeheader()
 
 # Sanity check: we should never have a key (e.g. date) that appears in one
