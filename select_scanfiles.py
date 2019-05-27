@@ -5,16 +5,17 @@ import glob
 import logging
 import datetime
 import argparse
+import collections
 
 from datetime import datetime
 from os import path
 
-class ScansLoader():
+class ScansLoader:
   def __init__(self, scans_dir):
     self.scans_dir = scans_dir
-    self.scanfiles = self.__list_scanfiles()
+    self.scanfiles = self._list_scanfiles()
 
-  def __list_scanfiles(self):
+  def _list_scanfiles(self):
     raise NotImplementedError
   
   def filedt(self, scanfile):
@@ -28,9 +29,9 @@ class ScansLoader():
       return
     filtered = self.scanfiles
     if not_before is not None:
-      filtered = filter(lambda sf: filedt(sf) >= not_before, filtered)
+      filtered = filter(lambda sf: self.filedt(sf) >= not_before, filtered)
     if not_after is not None:
-      filtered = filter(lambda sf: filedt(sf) <= not_after, filtered)
+      filtered = filter(lambda sf: self.filedt(sf) <= not_after, filtered)
     if custom is not None:
       filtered = filter(custom, filtered)
     self.scanfiles = list(filtered)
@@ -53,7 +54,7 @@ class ScansLoader():
     self.scanfiles = downsampled()
 
   def __sort_scanfiles(self, scanfiles, reverse=False):
-    return sorted(self.scanfiles, key=lambda sf: filedt(sf), reverse=reverse)
+    return sorted(self.scanfiles, key=lambda sf: self.filedt(sf), reverse=reverse)
 
   def sort(self, reverse=False):
     """Sort the list of scan files by date"""
@@ -64,18 +65,16 @@ class ScansLoader():
     {date -> list of scanfiles}. This method is order-preserving."""
     sf_by_date = collections.defaultdict(list)
     for sf in self.scanfiles:
-      day = filedt(sf).isoformat().split("T")[0]
+      day = self.filedt(sf).isoformat().split("T")[0]
       sf_by_date[day].append(sf)
     return sf_by_date
 
 class YethiScansLoader(ScansLoader):
-  FILE_GLOB = "/*/confirmed.csv.xz"
-
+  FILE_GLOB = "*/confirmed.csv.xz"
   def filedt(self, scanfile):
     return datetime.utcfromtimestamp(int(scanfile.split('/')[-2]))
-
-  def __list_scanfiles(self):
-    return glob.glob(path.join(self.scans_dir, FILE_GLOB))
+  def _list_scanfiles(self):
+    return glob.glob(path.join(self.scans_dir, self.FILE_GLOB))
 
 FORMAT_LOADERS = {
     "Yethi": YethiScansLoader,
@@ -104,5 +103,7 @@ parser.add_argument("scan_dir",
 
 ARGS = parser.parse_args()
 
-loader = FORAMT_LOADERS[ARGS.format]
-print(loader.scanfiles_by_date)
+# Initialize correct loader for selected scanfile type
+loader_cls = FORMAT_LOADERS[ARGS.format]
+loader = loader_cls(ARGS.scan_dir)
+print(loader.scanfiles_by_date())
