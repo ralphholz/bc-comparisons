@@ -2,7 +2,7 @@
 
 import csv
 import glob
-import logger
+import logging
 import datetime
 import argparse
 
@@ -12,9 +12,9 @@ from os import path
 class ScansLoader():
   def __init__(self, scans_dir):
     self.scans_dir = scans_dir
-    self.scanfiles = self._list_scanfiles()
+    self.scanfiles = self.__list_scanfiles()
 
-  def _list_scanfiles(self):
+  def __list_scanfiles(self):
     raise NotImplementedError
   
   def filedt(self, scanfile):
@@ -46,7 +46,7 @@ class ScansLoader():
     for day, scans in sf_by_date.items():
       closest = {find_closest(scans, day, target) for target in targets}
       if len(closest) != len(targets):
-        logger.warning(day, "has only", len(closest), "of", len(targets),
+        logging.warning(day, "has only", len(closest), "of", len(targets),
             "scans after downsampling!")
       for sf in closest:
         downsampled.append(sf)
@@ -69,19 +69,21 @@ class ScansLoader():
     return sf_by_date
 
 class YethiScansLoader(ScansLoader):
-  FILE_GLOB = path.join(self.scans_dir, "/*/confirmed.csv.xz")
+  FILE_GLOB = "/*/confirmed.csv.xz"
+
   def filedt(self, scanfile):
     return datetime.utcfromtimestamp(int(scanfile.split('/')[-2]))
-  def load_scanfiles(self):
-    return glob.glob(FILE_GLOB)
+
+  def __list_scanfiles(self):
+    return glob.glob(path.join(self.scans_dir, FILE_GLOB))
 
 FORMAT_LOADERS = {
     "Yethi": YethiScansLoader,
 }
 
 parser = argparse.ArgumentParser()
-parser.add_argument("scan_dir",
-  help="Full path to directory containing scan files")
+
+# Optional args
 parser.add_argument("--delimiter", "-d", default="\t",
   help="Input and output field delimiter (tab by default)")
 parser.add_argument("--inner-delimiter", "-id", default=";", 
@@ -90,11 +92,15 @@ parser.add_argument("--not-before", "-nb", default=None,
   help="Don't include scan files before the given UTC ISO date/time string")
 parser.add_argument("--not-after", "-na", default=None,
   help="Don't include scan files after the given UTC ISO date/time string")
-parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
-  help="Format of scan files.")
 parser.add_argument("--downsample", "-ds", default="10:00:00",
   help="Comma-separated list of 24-hour times in HH:MM:SS format. "
        "Downsample scans by selecting closest scans to each of these times each day.")
+
+# Required args
+parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
+  help="Format of scan files.", required=True)
+parser.add_argument("scan_dir",
+  help="Full path to directory containing scan files")
 
 ARGS = parser.parse_args()
 
