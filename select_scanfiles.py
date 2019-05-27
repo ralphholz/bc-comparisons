@@ -14,9 +14,8 @@ from os import path
 
 import util
 
-logging.basicConfig(filename="select_scanfiles.log", 
-        format=util.LOG_FMT, level=logging.DEBUG)
-
+# Class that handles all logic of enumerating, downsampling, and filtering
+# files/directories from the results of one scanner.
 class ScansLoader:
     def __init__(self, scans_dir):
         self.scans_dir = scans_dir
@@ -45,6 +44,7 @@ class ScansLoader:
         if custom is not None:
             logging.info("Running custom filter")
             filtered = filter(custom, filtered)
+        # Run the filters and return a new list
         self.scanfiles = list(filtered)
 
     def downsample(self, targets=("12:00:00")):
@@ -85,64 +85,98 @@ class ScansLoader:
         for sf in self.scanfiles:
             yield (self.filedt(sf).isoformat(), sf)
 
+
 class YethiScansLoader(ScansLoader):
     FILE_GLOB = "*/confirmed.csv.xz"
+
     def filedt(self, scanfile):
-        return datetime.utcfromtimestamp(int(scanfile.split('/')[-2]))
+        return datetime.utcfromtimestamp(int(scanfile.split("/")[-2].strip()))
+
     def _list_scanfiles(self):
         return glob.glob(path.join(self.scans_dir, self.FILE_GLOB))
 
+
+class BtcScansLoader(ScansLoader):
+    FILE_GLOB = "log-*/"
+
+    def filedt(self, scanfile):
+        dirname = scanfile.strip("/").split("/")[-1].strip()
+        # Remove the "log-" prefix from dirname
+        dt_components = dirname.replace("log-", "").split("T")
+        # If this assertion fails, the glob is matching something that isn't a
+        # scan dir, or a scan directory name is not formatted correctly
+        assert len(dt_components) == 2
+        # Replace the dashes with colons in time part of dirname
+        dt_components[1] = dt_components[1].replace("-", ":")
+        isofmt = "T".join(dt_components)
+        return util.str2dt(isofmt)
+
+    def _list_scanfiles(self):
+        return list(map(lambda f: f.strip('/'),
+            glob.glob(path.join(self.scans_dir, self.FILE_GLOB))))
+
+
+class LtcScansLoader(BtcScansLoader):
+    pass
+
 FORMAT_LOADERS = {
     "Yethi": YethiScansLoader,
+    "BTC": BtcScansLoader,
+    "LTC": LtcScansLoader,
 }
 
-parser = argparse.ArgumentParser()
+if __name__ == "__main__":
+    # Configure logging module
+    logging.basicConfig(filename="select_scanfiles.log", 
+        format=util.LOG_FMT, level=logging.DEBUG)
 
-# Optional args
-parser.add_argument("--delimiter", "-d", default="\t",
-  help="Output field delimiter (tab by default)")
-parser.add_argument("--not-before", "-nb", default=None,
-  help="Don't include scan files before the given UTC ISO date/time string")
-parser.add_argument("--not-after", "-na", default=None,
-  help="Don't include scan files after the given UTC ISO date/time string")
-parser.add_argument("--downsample", "-ds", default="10:00:00",
-  help="Comma-separated list of 24-hour times in HH:MM:SS format. "
-       "Downsample scans by selecting closest scans to each of these times each day.")
+    parser = argparse.ArgumentParser()
 
-# Required args
-parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
-  help="Format of scan files.", required=True)
-parser.add_argument("scan_dir",
-  help="Full path to directory containing scan files")
+    # Optional args
+    parser.add_argument("--delimiter", "-d", default="\t",
+      help="Output field delimiter (tab by default)")
+    parser.add_argument("--not-before", "-nb", default=None,
+      help="Don't include scan files before the given UTC ISO date/time string")
+    parser.add_argument("--not-after", "-na", default=None,
+      help="Don't include scan files after the given UTC ISO date/time string")
+    parser.add_argument("--downsample", "-ds", default="10:00:00",
+      help="Comma-separated list of 24-hour times in HH:MM:SS format. "
+           "Downsample scans by selecting closest scans to each of these times each day.")
 
-logging.debug("===STARTUP===")
+    # Required args
+    parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
+      help="Format of scan files.", required=True)
+    parser.add_argument("scan_dir",
+      help="Full path to directory containing scan files")
 
-ARGS = parser.parse_args()
+    logging.debug("===STARTUP===")
 
-# Initialize TSV output writer
-writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter)
+    ARGS = parser.parse_args()
 
-# Initialize correct loader for selected scanfile type
-loader_cls = FORMAT_LOADERS[ARGS.format]
-loader = loader_cls(ARGS.scan_dir)
+    # Initialize TSV output writer
+    writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter)
 
-# Filter
-not_before_dt = util.str2dt(ARGS.not_before) if ARGS.not_before is not None else None
-not_after_dt = util.str2dt(ARGS.not_after) if ARGS.not_after is not None else None
-loader.filter(not_before_dt, not_after_dt)
+    # Initialize correct loader for selected scanfile type
+    loader_cls = FORMAT_LOADERS[ARGS.format]
+    loader = loader_cls(ARGS.scan_dir)
 
-# Downsample
-TIME_RE = re.compile('[0-9]{2}:[0-9]{2}:[0-9]{2}(,[0-9]{2}:[0-9]{2}:[0-9]{2})*')
-if TIME_RE.fullmatch(ARGS.downsample.strip()):
-    downsample_targets = ARGS.downsample.strip().split(',')
-    logging.info("Downsampling to times: %s", ", ".join(downsample_targets))
-    loader.downsample(targets=downsample_targets)
+    # Filter
+    not_before_dt = util.str2dt(ARGS.not_before) if ARGS.not_before is not None else None
+    not_after_dt = util.str2dt(ARGS.not_after) if ARGS.not_after is not None else None
+    loader.filter(not_before_dt, not_after_dt)
 
-# Sort by time
-loader.sort()
+    # Downsample
+    TIME_RE = re.compile('[0-9]{2}:[0-9]{2}:[0-9]{2}(,[0-9]{2}:[0-9]{2}:[0-9]{2})*')
+    if TIME_RE.fullmatch(ARGS.downsample.strip()):
+        downsample_targets = ARGS.downsample.strip().split(',')
+        logging.info("Downsampling to times: %s", ", ".join(downsample_targets))
+        loader.downsample(targets=downsample_targets)
 
-# Produce output
-for iso_sf in loader.scanfiles_and_isotimes():
-    writer.writerow(iso_sf)
+    # Sort by time
+    loader.sort()
 
-logging.debug("===FINISH===")
+    # Produce output
+    for iso_sf in loader.scanfiles_and_isotimes():
+        writer.writerow(iso_sf)
+
+    logging.debug("===FINISH===")

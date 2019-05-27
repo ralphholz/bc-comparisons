@@ -11,7 +11,7 @@ def time2dt(timestr:str, daystr:str):
 
 def str2dt(dtstr:str):
     just_date = re.compile("[0-9]{4}(-[0-9]{2}){2}")
-    date_and_time = re.compile("[0-9]{4}(-[0-9]{2}){2}T[0-9]{2}(-[0-9]{2}){2}Z?")
+    date_and_time = re.compile("[0-9]{4}(-[0-9]{2}){2}T[0-9]{2}(:[0-9]{2}){2}Z?")
 
     if just_date.fullmatch(dtstr):
         fstr = "{}T{}Z".format(dtstr, "00:00:00")
