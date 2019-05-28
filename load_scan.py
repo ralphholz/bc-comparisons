@@ -27,6 +27,10 @@ class LoadScan:
     def dedupe(self):
         """Removes duplicate nodes (non-order-preserving)"""
         self.nodes = list(set(self.nodes))
+
+    def drop_ipv6(self):
+        """Removes any node with a non-IPv4 address"""
+        self.nodes = list(filter(lambda n: util.is_ipv4(n[0]), self.nodes))
     
     def filedt(self, scanfile):
         """Extract UTC datetime from given scan file path"""
@@ -69,7 +73,7 @@ FORMAT_LOADERS = {
 
 if __name__ == "__main__":
     # Configure logging module
-    logging.basicConfig(filename="get_nodes.log", 
+    logging.basicConfig(filename="load_scan.log", 
         format=util.LOG_FMT, level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
@@ -77,6 +81,8 @@ if __name__ == "__main__":
     # Optional args
     parser.add_argument("--delimiter", "-d", default="\t",
       help="Output field delimiter (tab by default)")
+    parser.add_argument("--keep-ipv6", "-k6", action="store_true",
+      help="If specified, node IPv6 addresses will be kept in output.")
 
     # Required args
     parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
@@ -96,6 +102,11 @@ if __name__ == "__main__":
     loader_cls = FORMAT_LOADERS[ARGS.format]
     loader = loader_cls(ARGS.scan_path)
 
+    # Remove non-IPv4 if required
+    if not ARGS.keep_ipv6:
+        loader.drop_ipv6()
+    
+    # Write out nodes
     for n in loader.nodes:
       writer.writerow(n)
 
