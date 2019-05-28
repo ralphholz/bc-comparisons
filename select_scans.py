@@ -143,8 +143,8 @@ if __name__ == "__main__":
     parser.add_argument("--downsample", "-ds", default="10:00:00",
       help="Comma-separated list of 24-hour times in HH:MM:SS format. "
            "Downsample scans by selecting closest scans to each of these times each day.")
-    parser.add_argument("--date-buckets", "-db", action="store_true",
-      help="If given, outputs date buckets instead of one scanfile per output row.")
+    parser.add_argument("--each-scan", "-e", action="store_true",
+      help="If given, outputs one scanfile per output row instead of using date buckets.")
 
     # Required args
     parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
@@ -179,12 +179,15 @@ if __name__ == "__main__":
     loader.sort()
 
     # Produce output
-    if ARGS.date_buckets:
-        for date, scanfiles in loader.scanfiles_by_date().items():
-            scanfiles_data = ARGS.inner_delimiter.join(scanfiles)
-            writer.writerow((date, scanfiles_data,))
-    else:
+    if ARGS.each_scan:
         for iso_sf in loader.scanfiles_and_isotimes():
             writer.writerow(iso_sf)
+    else:
+        sf_by_date = loader.scanfiles_by_date()
+        # Ensure output rows are ordered by ISO date
+        for date in sorted(sf_by_date.keys()):
+            scanfiles = sf_by_date[date]
+            scanfiles_data = ARGS.inner_delimiter.join(scanfiles)
+            writer.writerow((date, scanfiles_data,))
 
     logging.debug("===FINISH===")

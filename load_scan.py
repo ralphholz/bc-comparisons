@@ -19,6 +19,8 @@ from processing.dataset import Dataset
 import util
 
 class LoadScan:
+    NODE_PART_SEP = ":"
+
     def __init__(self, scan_path):
         self.scanpath = scan_path
         logging.info("Loading nodes from %s", self.scanpath)
@@ -28,9 +30,14 @@ class LoadScan:
         """Removes duplicate nodes (non-order-preserving)"""
         self.nodes = list(set(self.nodes))
 
+    @classmethod
+    def format_node(cls, node, omit_nodeid=False, omit_ip=False, omit_port=False):
+        """Formats node tuple into string"""
+        raise NotImplementedError
+
     def drop_ipv6(self):
         """Removes any node with a non-IPv4 address"""
-        self.nodes = list(filter(lambda n: util.is_ipv4(n[0]), self.nodes))
+        raise NotImplementedError
     
     def filedt(self, scanfile):
         """Extract UTC datetime from given scan file path"""
@@ -44,6 +51,25 @@ class LoadYethiScan(LoadScan):
     def filedt(self, scanfile):
         return util.yethi_scanfile_dt(scanfile)
 
+    @classmethod
+    def format_node(cls, node, omit_nodeid=False, omit_ip=False, omit_port=False):
+        """Formats node tuple into string"""
+        # We must have at least one component to identify a node
+        assert not (omit_nodeid and omit_ip and omit_port)
+        fieldmap = {
+            0: omit_nodeid,
+            1: omit_ip,
+            2: omit_port,
+        }
+        # This code assumes Yethi nodes are always a thruple (node_id, ip, port)
+        assert len(node) == 3
+        newnode = tuple(nodepart for i, nodepart in enumerate(node) if not fieldmap[i])
+        return cls.NODE_PART_SEP.join(newnode)
+    
+    def drop_ipv6(self):
+        """Removes any node with a non-IPv4 address"""
+        self.nodes = list(filter(lambda n: util.is_ipv4(n[1]), self.nodes))
+
     def _read_nodes(self):
         nodes = []
         with lzma.open(self.scanpath, "rt") as f:
@@ -55,6 +81,24 @@ class LoadYethiScan(LoadScan):
 class LoadBtcScan(LoadScan):
     def filedt(self, scanfile):
         return util.btc_scanfile_dt(scanfile)
+    
+    @classmethod
+    def format_node(cls, node, omit_nodeid=False, omit_ip=False, omit_port=False):
+        """Formats node tuple into string"""
+        # We must have at least one component to identify a node
+        assert not (omit_nodeid and omit_ip and omit_port)
+        fieldmap = {
+            0: omit_ip,
+            1: omit_port,
+        }
+        # This code assumes BTC nodes are always a thruple (node_id, ip, port)
+        assert len(node) == 2
+        newnode = tuple(nodepart for i, nodepart in enumerate(node) if not fieldmap[i])
+        return cls.NODE_PART_SEP.join(newnode)
+
+    def drop_ipv6(self):
+        """Removes any node with a non-IPv4 address"""
+        self.nodes = list(filter(lambda n: util.is_ipv4(n[0]), self.nodes))
 
     def _read_nodes(self):
         ds = Dataset()
