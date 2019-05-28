@@ -90,7 +90,7 @@ class YethiScansLoader(ScansLoader):
     FILE_GLOB = "*/confirmed.csv.xz"
 
     def filedt(self, scanfile):
-        return datetime.utcfromtimestamp(int(scanfile.split("/")[-2].strip()))
+        return util.yethi_scanfile_dt(scanfile)
 
     def _list_scanfiles(self):
         return glob.glob(path.join(self.scans_dir, self.FILE_GLOB))
@@ -100,16 +100,7 @@ class BtcScansLoader(ScansLoader):
     FILE_GLOB = "log-*/"
 
     def filedt(self, scanfile):
-        dirname = scanfile.strip("/").split("/")[-1].strip()
-        # Remove the "log-" prefix from dirname
-        dt_components = dirname.replace("log-", "").split("T")
-        # If this assertion fails, the glob is matching something that isn't a
-        # scan dir, or a scan directory name is not formatted correctly
-        assert len(dt_components) == 2
-        # Replace the dashes with colons in time part of dirname
-        dt_components[1] = dt_components[1].replace("-", ":")
-        isofmt = "T".join(dt_components)
-        return util.str2dt(isofmt)
+        return util.btc_scanfile_dt(scanfile)
 
     def _list_scanfiles(self):
         return list(map(lambda f: f.strip('/'),

@@ -1,4 +1,9 @@
+#!/usr/bin/env python3
+
 import re
+import doctest
+import ipaddress
+
 from datetime import datetime
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
@@ -24,3 +29,49 @@ def str2dt(dtstr:str):
         return datetime.strptime(fstr, "%Y-%m-%dT%H:%M:%SZ")
 
     raise ValueError("Invalid date/time string: " + str(dtstr))
+
+def parse_ip_port_pair(pair: str):
+    """
+    Parse a string containing an IPv4 or v6 address and port, separated by
+    a colon (:) into a tuple containing (IP, port)
+    >>> parse_ip_port_pair("1.1.1.1:8080")
+    ('1.1.1.1', '8080')
+    >>> parse_ip_port_pair("[2001:56b:dda9:4b00:49f9:121b:aa9e:de30]:1199")
+    ('[2001:56b:dda9:4b00:49f9:121b:aa9e:de30]', '1199')
+    """
+    components = pair.split(":")
+    ip = ":".join(components[:-1])
+    port = components[-1]
+    return (ip, port,)
+
+def is_ipv4(ip: str):
+    """
+    >>> is_ipv4("8.8.8.8")
+    True
+    >>> is_ipv4("[2001:56b:dda9:4b00:49f9:121b:aa9e:de30]")
+    False
+    >>> is_ipv4("foo")
+    False
+    """
+    try:
+        return type(ipaddress.ip_address(ip)) is ipaddress.IPv4Address
+    except:
+        return False
+
+def yethi_scanfile_dt(scanfile: str):
+    return datetime.utcfromtimestamp(int(scanfile.split("/")[-2].strip()))
+
+def btc_scanfile_dt(scanfile: str):
+    dirname = scanfile.strip("/").split("/")[-1].strip()
+    # Remove the "log-" prefix from dirname
+    dt_components = dirname.replace("log-", "").split("T")
+    # If this assertion fails, the glob is matching something that isn't a
+    # scan dir, or a scan directory name is not formatted correctly
+    assert len(dt_components) == 2
+    # Replace the dashes with colons in time part of dirname
+    dt_components[1] = dt_components[1].replace("-", ":")
+    isofmt = "T".join(dt_components)
+    return str2dt(isofmt)
+
+if __name__ == "__main__":
+    doctest.testmod()

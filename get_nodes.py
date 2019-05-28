@@ -24,6 +24,10 @@ class LoadScan:
         logging.info("Loading nodes from %s", self.scanpath)
         self.nodes = self._read_nodes()
 
+    def dedupe(self):
+        """Removes duplicate nodes (non-order-preserving)"""
+        self.nodes = list(set(self.nodes))
+    
     def filedt(self, scanfile):
         """Extract UTC datetime from given scan file path"""
         raise NotImplementedError
@@ -34,7 +38,7 @@ class LoadScan:
 
 class LoadYethiScan(LoadScan):
     def filedt(self, scanfile):
-        return datetime.utcfromtimestamp(int(scanfile.split("/")[-2].strip()))
+        return util.yethi_scanfile_dt(scanfile)
 
     def _read_nodes(self):
         nodes = []
@@ -46,23 +50,13 @@ class LoadYethiScan(LoadScan):
 
 class LoadBtcScan(LoadScan):
     def filedt(self, scanfile):
-        dirname = scanfile.strip("/").split("/")[-1].strip()
-        # Remove the "log-" prefix from dirname
-        dt_components = dirname.replace("log-", "").split("T")
-        # If this assertion fails, the glob is matching something that isn't a
-        # scan dir, or a scan directory name is not formatted correctly
-        assert len(dt_components) == 2
-        # Replace the dashes with colons in time part of dirname
-        dt_components[1] = dt_components[1].replace("-", ":")
-        isofmt = "T".join(dt_components)
-        return util.str2dt(isofmt)
+        return util.btc_scanfile_dt(scanfile)
 
     def _read_nodes(self):
-        nodes = []
         ds = Dataset()
-        data = ds.load(self.scanpath.strip("/"))
-        # WTF IS GOING ON
-        # print(data)
+        ds.load(self.scanpath.strip("/"))
+        return list(map(util.parse_ip_port_pair,
+                        ds.address_ipinfos["address"].tolist()))
 
 class LoadLtcScan(LoadBtcScan):
     pass
