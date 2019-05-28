@@ -76,9 +76,17 @@ class ScansLoader:
         """Group scan files by ISO date string (YYYY-MM-DD), return a dict 
         {date -> list of scanfiles}. This method is order-preserving."""
         sf_by_date = collections.defaultdict(list)
+        prevday = None
         for sf in self.scanfiles:
             day = self.filedt(sf).isoformat().split("T")[0]
+            # Check for missing days
+            if prevday is not None:
+                prevday_dt = util.str2dt(prevday)
+                day_dt = util.str2dt(day)
+                if (day_dt.date() - prevday_dt.date()).days > 1:
+                    logging.warning("Missing data between dates %s and %s", prevday, day)
             sf_by_date[day].append(sf)
+            prevday = day
         return sf_by_date
 
     def scanfiles_and_isotimes(self):
@@ -118,14 +126,16 @@ FORMAT_LOADERS = {
 
 if __name__ == "__main__":
     # Configure logging module
-    logging.basicConfig(filename="select_scans.log", 
-        format=util.LOG_FMT, level=logging.DEBUG)
+    logging.basicConfig(#filename="select_scans.log", 
+        format=util.LOG_FMT, level=util.LOG_LEVEL)
 
     parser = argparse.ArgumentParser()
 
     # Optional args
     parser.add_argument("--delimiter", "-d", default="\t",
       help="Output field delimiter (tab by default)")
+    parser.add_argument("--inner-delimiter", "-id", default=";", 
+      help="Delimiter to use for lists within a field (; by default)")
     parser.add_argument("--not-before", "-nb", default=None,
       help="Don't include scan files before the given UTC ISO date/time string")
     parser.add_argument("--not-after", "-na", default=None,
@@ -133,6 +143,8 @@ if __name__ == "__main__":
     parser.add_argument("--downsample", "-ds", default="10:00:00",
       help="Comma-separated list of 24-hour times in HH:MM:SS format. "
            "Downsample scans by selecting closest scans to each of these times each day.")
+    parser.add_argument("--date-buckets", "-db", action="store_true",
+      help="If given, outputs date buckets instead of one scanfile per output row.")
 
     # Required args
     parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
@@ -167,7 +179,12 @@ if __name__ == "__main__":
     loader.sort()
 
     # Produce output
-    for iso_sf in loader.scanfiles_and_isotimes():
-        writer.writerow(iso_sf)
+    if ARGS.date_buckets:
+        for date, scanfiles in loader.scanfiles_by_date().items():
+            scanfiles_data = ARGS.inner_delimiter.join(scanfiles)
+            writer.writerow((date, scanfiles_data,))
+    else:
+        for iso_sf in loader.scanfiles_and_isotimes():
+            writer.writerow(iso_sf)
 
     logging.debug("===FINISH===")

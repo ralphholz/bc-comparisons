@@ -74,7 +74,7 @@ FORMAT_LOADERS = {
 if __name__ == "__main__":
     # Configure logging module
     logging.basicConfig(filename="load_scan.log", 
-        format=util.LOG_FMT, level=logging.DEBUG)
+        format=util.LOG_FMT, level=util.LOG_LEVEL)
 
     parser = argparse.ArgumentParser()
 

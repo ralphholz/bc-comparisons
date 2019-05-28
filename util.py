@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import re
+import logging
 import doctest
 import ipaddress
 
 from datetime import datetime
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
+LOG_LEVEL = logging.INFO
 
 def time2dt(timestr:str, daystr:str):
     """timestr should be 24-hour time string in format HH:MM:SS
