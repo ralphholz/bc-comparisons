@@ -64,7 +64,7 @@ def yethi_scanfile_dt(scanfile: str):
     return datetime.utcfromtimestamp(int(scanfile.split("/")[-2].strip()))
 
 def btc_scanfile_dt(scanfile: str):
-    dirname = scanfile.strip("/").split("/")[-1].strip()
+    dirname = scanfile.rstrip("/").split("/")[-1].strip()
     # Remove the "log-" prefix from dirname
     dt_components = dirname.replace("log-", "").split("T")
     # If this assertion fails, the glob is matching something that isn't a

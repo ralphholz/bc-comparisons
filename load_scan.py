@@ -102,7 +102,12 @@ class LoadBtcScan(LoadScan):
 
     def _read_nodes(self):
         ds = Dataset()
-        ds.load(self.scanpath.strip("/"))
+        ds.load(self.scanpath.rstrip("/"))
+        if ds.address_ipinfos is None:
+            logging.warning("Empty nodeset for scan %s %s",
+                    self.filedt(self.scanpath),
+                    self.scanpath)
+            return []
         return list(map(util.parse_ip_port_pair,
                         ds.address_ipinfos["address"].tolist()))
 

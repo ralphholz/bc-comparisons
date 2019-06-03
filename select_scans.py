@@ -111,7 +111,7 @@ class BtcScansLoader(ScansLoader):
         return util.btc_scanfile_dt(scanfile)
 
     def _list_scanfiles(self):
-        return list(map(lambda f: f.strip('/'),
+        return list(map(lambda f: f.rstrip("/"),
             glob.glob(path.join(self.scans_dir, self.FILE_GLOB))))
 
 
