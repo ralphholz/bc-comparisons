@@ -87,7 +87,7 @@ if __name__ == "__main__":
     for mk in missing_keys:
       for fname, sets in groups.items():
         if mk in sets:
-          logging.warning("Ignoring missing key %s in %s", mk, fname)
+          logging.warning("Ignoring extraneous key %s in %s", mk, fname)
           del sets[mk]
       keys.remove(mk)
   else:
