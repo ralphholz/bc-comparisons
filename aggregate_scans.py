@@ -87,29 +87,34 @@ if __name__ == "__main__":
             loader.drop_ipv6()
         return loader.nodes
 
+    def build_nodelist_for_date(date_scanfiles):
+        date, scanfiles = date_scanfiles
+
+        nodeset_for_date = set()
+
+        for sf in scanfiles:
+          nodes = load(sf)
+          nodeset_for_date = nodeset_for_date.union(set(nodes))
+        
+        nodelist_for_date = [
+            loader_cls.format_node(n, 
+                                   omit_nodeid=ARGS.omit_nodeid, 
+                                   omit_ip=ARGS.omit_ip, 
+                                   omit_port=ARGS.omit_port)
+            for n in nodeset_for_date
+        ]
+        if ARGS.dedupe_output_nodes:
+            nodelist_for_date = set(nodelist_for_date)
+        # Sort to return a deterministic ordering of nodes
+        nodelist_for_date = sorted(nodelist_for_date)
+        nodelist_for_date = ARGS.inner_delimiter.join(nodelist_for_date)
+        return (date, nodelist_for_date)
+        #writer.writerow((date, nodelist_for_date,))
+
     with mp.Pool(ARGS.concurrency) as p:
         # Load scans for each date
-        for date in sorted(date_scanfiles.keys()):
-            scanfiles = date_scanfiles[date]
-
-            sf_nodes = p.map(load, scanfiles)
-            
-            nodeset_for_date = set()
-            for nodelist in sf_nodes:
-                nodeset_for_date = nodeset_for_date.union(set(nodelist))
-
-            nodelist_for_date = [
-                loader_cls.format_node(n, 
-                                       omit_nodeid=ARGS.omit_nodeid, 
-                                       omit_ip=ARGS.omit_ip, 
-                                       omit_port=ARGS.omit_port)
-                for n in nodeset_for_date
-            ]
-            if ARGS.dedupe_output_nodes:
-                nodelist_for_date = set(nodelist_for_date)
-            # Sort to return a deterministic ordering of nodes
-            nodelist_for_date = sorted(nodelist_for_date)
-            nodelist_for_date = ARGS.inner_delimiter.join(nodelist_for_date)
-            writer.writerow((date, nodelist_for_date,))
+        res = p.map(build_nodelist_for_date, sorted(date_scanfiles.items()))
+        for row in res:
+          writer.writerow(row)
 
     logging.debug("===FINISH===")
