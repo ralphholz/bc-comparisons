@@ -8,7 +8,9 @@ import glob
 import logging
 import datetime
 import argparse
+import functools
 import collections
+import multiprocessing as mp
 
 from datetime import datetime
 from os import path
@@ -33,6 +35,9 @@ if __name__ == "__main__":
       help="Delimiter to use for lists within a field (; by default)")
     parser.add_argument("--keep-ipv6", "-k6", action="store_true",
       help="If specified, node IPv6 addresses will be kept in output.")
+    parser.add_argument("--concurrency", "-c", type=int, default=mp.cpu_count(),
+      help="Number of MP workers to use for reading scanfiles concurrently."
+      " (default={})".format(mp.cpu_count()))
 
     # Output options
     parser.add_argument("--omit-ip", "-oip", action="store_true", 
@@ -73,28 +78,38 @@ if __name__ == "__main__":
     # Get correct loader for selected scanfile type
     loader_cls = load_scan.FORMAT_LOADERS[ARGS.format]
 
-    # Load scans for each date
-    for date in sorted(date_scanfiles.keys()):
-        scanfiles = date_scanfiles[date]
-        nodeset_for_date = set()
-        for sf in scanfiles:
-            loader = loader_cls(sf)
-            if not ARGS.keep_ipv6:
-                loader.drop_ipv6()
-            for node in loader.nodes:
-                nodeset_for_date.add(node)
-        nodelist_for_date = [
-            loader_cls.format_node(n, 
-                                   omit_nodeid=ARGS.omit_nodeid, 
-                                   omit_ip=ARGS.omit_ip, 
-                                   omit_port=ARGS.omit_port)
-            for n in nodeset_for_date
-        ]
-        if ARGS.dedupe_output_nodes:
-            nodelist_for_date = set(nodelist_for_date)
-        # Sort to return a deterministic ordering of nodes
-        nodelist_for_date = sorted(nodelist_for_date)
-        nodelist_for_date = ARGS.inner_delimiter.join(nodelist_for_date)
-        writer.writerow((date, nodelist_for_date,))
+    # Loads confirmed nodes from a given scanfile using a given Loader class
+    # NOTE: function is defined here because it wraps ARGS and loader_cls
+    # local vars
+    def load(scanfile: str):
+        loader = loader_cls(scanfile)
+        if not ARGS.keep_ipv6:
+            loader.drop_ipv6()
+        return loader.nodes
+
+    with mp.Pool(ARGS.concurrency) as p:
+        # Load scans for each date
+        for date in sorted(date_scanfiles.keys()):
+            scanfiles = date_scanfiles[date]
+
+            sf_nodes = p.map(load, scanfiles)
+            
+            nodeset_for_date = set()
+            for nodelist in sf_nodes:
+                nodeset_for_date = nodeset_for_date.union(set(nodelist))
+
+            nodelist_for_date = [
+                loader_cls.format_node(n, 
+                                       omit_nodeid=ARGS.omit_nodeid, 
+                                       omit_ip=ARGS.omit_ip, 
+                                       omit_port=ARGS.omit_port)
+                for n in nodeset_for_date
+            ]
+            if ARGS.dedupe_output_nodes:
+                nodelist_for_date = set(nodelist_for_date)
+            # Sort to return a deterministic ordering of nodes
+            nodelist_for_date = sorted(nodelist_for_date)
+            nodelist_for_date = ARGS.inner_delimiter.join(nodelist_for_date)
+            writer.writerow((date, nodelist_for_date,))
 
     logging.debug("===FINISH===")
