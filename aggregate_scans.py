@@ -35,9 +35,11 @@ if __name__ == "__main__":
       help="Delimiter to use for lists within a field (; by default)")
     parser.add_argument("--keep-ipv6", "-k6", action="store_true",
       help="If specified, node IPv6 addresses will be kept in output.")
-    parser.add_argument("--concurrency", "-c", type=int, default=mp.cpu_count(),
+
+    default_concurr = max(1, mp.cpu_count() - 2)
+    parser.add_argument("--concurrency", "-c", type=int, default=default_concurr,
       help="Number of MP workers to use for reading scanfiles concurrently."
-      " (default={})".format(mp.cpu_count()))
+      " (default={})".format(default_concurr))
 
     # Output options
     parser.add_argument("--omit-ip", "-oip", action="store_true", 
