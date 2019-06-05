@@ -59,9 +59,10 @@ if __name__ == "__main__":
     key = keyfunc(row)
     values = valuefunc(row)
     valuelist = values.strip(ARGS.inner_delimiter).split(ARGS.inner_delimiter)
-    # transform IP addresses using the selected transformation
+    # transform IP addresses using the selected transformation and remove any
+    # that transform to a None value (e.g. un-announced IPs)
     # e.g. IP -> ASN or IP -> /24 prefix etc
-    valuelist = map(transform, valuelist)
+    valuelist = filter(lambda v: v is not None, map(transform, valuelist))
     return key, collections.Counter(valuelist)
 
   # A mapping of {input-filename -> {date -> counter of identifiers}}
@@ -75,7 +76,7 @@ if __name__ == "__main__":
 
   # Read input files into data structure
   for infile in ARGS.infiles:
-    logging.debug("Reading input file %s", infile.name)
+    logging.info("Reading input file %s", infile.name)
     with infile as inf:
       reader = csv.reader(inf, delimiter=ARGS.delimiter)
       table = {}
