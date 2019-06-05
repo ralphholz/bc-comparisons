@@ -86,19 +86,23 @@ if __name__ == "__main__":
   keys = []
 
   # Read input files into data structure
-  with mp.Pool(ARGS.concurrency) as p:
-    for infile in ARGS.infiles:
-      logging.info("Reading input file %s", infile.name)
-      with infile as inf:
-        reader = csv.reader(inf, delimiter=ARGS.delimiter)
-        table = {}
-        for (key, valueset) in p.map(process_row, reader):
-          if key not in keys_seen:
-            keys_seen.add(key)
-            keys.append(key)
-          table[key] = valueset
-        groups[infile.name] = table
+  for infile in ARGS.infiles:
+    logging.info("Reading input file %s", infile.name)
+    with infile as inf:
+      reader = csv.reader(inf, delimiter=ARGS.delimiter)
+      table = {}
       
+      with mp.Pool(ARGS.concurrency) as p:
+        rows = p.map(process_row, reader)
+
+      for (key, valueset) in rows:
+        if key not in keys_seen:
+          keys_seen.add(key)
+          keys.append(key)
+        table[key] = valueset
+
+      groups[infile.name] = table
+    
   # Generate all possible combinations of the input files
   combos = util.all_combinations(groups.keys())
 
