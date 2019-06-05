@@ -50,6 +50,8 @@ if __name__ == "__main__":
     "where combo is an --inner-delimiter separated list of input filenames.")
   parser.add_argument("--no-grouping", "-ng", action="store_true",
     help="If specified, counts are shown for each set in output of --explore.")
+  parser.add_argument("--unique", "-u", action="store_true",
+    help="If specified, remove duplicate values before processing each input row.")
     
   parser.add_argument("--concurrency", "-j", type=int, default=util.DEFAULT_CONCURRENCY,
     help="Number of MP workers to use for reading scanfiles concurrently."
@@ -69,6 +71,8 @@ if __name__ == "__main__":
     logging.info("Processing row key %s", key)
     values = valuefunc(row)
     valuelist = values.strip(ARGS.inner_delimiter).split(ARGS.inner_delimiter)
+    if ARGS.unique:
+      valuelist = set(valuelist)
 
     # transform IP addresses using the selected transformation and remove any
     # that transform to a None value (e.g. un-announced IPs)
