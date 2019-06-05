@@ -89,15 +89,28 @@ if __name__ == "__main__":
   keys_seen = set()
   keys = []
 
+  def row_filter(row):
+    # If --explore is given, ignore rows that don't match the key
+    if ARGS.explore:
+      exkey = ARGS.explore.split("=")[0]
+      return row[0] == exkey
+    return True
+  
+  def infile_filter(infile):
+    if ARGS.explore:
+      exfnames = ARGS.explore.split("=")[1].split(ARGS.inner_delimiter)
+      return infile.name in exfnames
+    return True
+
   # Read input files into data structure
-  for infile in ARGS.infiles:
+  for infile in filter(infile_filter, ARGS.infiles):
     logging.info("Reading input file %s", infile.name)
     with infile as inf:
       reader = csv.reader(inf, delimiter=ARGS.delimiter)
       table = {}
       
       with mp.Pool(ARGS.concurrency) as p:
-        rows = p.map(process_row, reader)
+        rows = p.map(process_row, filter(row_filter, reader))
 
       for (key, valueset) in rows:
         if key not in keys_seen:
