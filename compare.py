@@ -76,6 +76,7 @@ if __name__ == "__main__":
 
   # Read input files into data structure
   for infile in ARGS.infiles:
+    logging.debug("Reading input file %s", infile.name)
     with infile as inf:
       reader = csv.reader(inf, delimiter=ARGS.delimiter)
       table = {}
@@ -91,6 +92,7 @@ if __name__ == "__main__":
   combos = util.all_combinations(groups.keys())
 
   if ARGS.ignore_missing_keys:
+    logging.warning("Dropping keys that don't appear in all inputs...")
     # Remove keys that are not in all input files
     missing_keys = set()
     for fname, sets in groups.items():
@@ -105,6 +107,7 @@ if __name__ == "__main__":
   else:
     # Sanity check: we should never have a key (e.g. date) that appears in one
     # input file but not another
+    logging.debug("Starting sanity check: no missing dates")
     all_ok = True
     for fname, sets in groups.items():
       if sets.keys() != keys_seen:
@@ -119,6 +122,8 @@ if __name__ == "__main__":
     # Produce row-wise intersections for the same key for all possible
     # combinations of input files
     rowvalues = {'key': key}
+    logging.debug("make_cardinality_outputrow: computing intersections "
+                  "for key = %s", key)
     for combo in combos:
       isect = None
       for fname in combo:
@@ -131,6 +136,8 @@ if __name__ == "__main__":
   
   def make_intersection_outputrows(key, combo, group=True):
     isect = None
+    logging.debug("make_intersection_outputrows: computing intersections "
+                  "for %s, %s, group=%s", key, combo, group)
     for fname in combo:
       nodes = groups[fname][key]
       if isect is None:
@@ -140,11 +147,13 @@ if __name__ == "__main__":
 
     # if we're grouping by value, yield groups
     if group:
+      logging.debug("make_intersection_outputrows: computing grouped output")
       # generate output rows: key,node,count
       for (k, v) in sorted(isect.items(), key=lambda t: -t[1]):
         yield key, k, v
     # if we're not grouping then we want to see values for each set in the intersection
     else:
+      logging.debug("make_intersection_outputrows: computing ungrouped output")
       res = []
       for fname in combo:
         nodes = groups[fname][key] & isect

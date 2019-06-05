@@ -12,7 +12,7 @@ from collections import Counter
 ASN_DB = "ipasn.dat"
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
 
 def time2dt(timestr:str, daystr:str):
     """timestr should be 24-hour time string in format HH:MM:SS
@@ -34,6 +34,7 @@ def str2dt(dtstr:str):
             fstr += "Z"
         return datetime.strptime(fstr, "%Y-%m-%dT%H:%M:%SZ")
 
+    logging.fatal("time2dt: Invalid date/time string %s", str(dtstr))
     raise ValueError("Invalid date/time string: " + str(dtstr))
 
 def parse_ip_port_pair(pair: str):
@@ -115,10 +116,13 @@ def ip2asn(ip, asndb=[]):
     asndb = asndb[0]
     asn = asndb.lookup(ip)
     if asn[0] is None:
+      logging.fatal("util.ip2asn: unknown ASN for IP %s", ip)
       raise KeyError("Unknown ASN for IP {}".format(ip))
     return asn[0]
   except:
+    logging.fatal("util.ip2asn: unknown ASN for IP %s", ip)
     raise KeyError("Unknown ASN for IP {}".format(ip))
+  logging.fatal("util.ip2asn: unknown ASN for IP %s", ip)
   raise KeyError("Unknown ASN for IP {}".format(ip))
 
 def geoip(ip):
