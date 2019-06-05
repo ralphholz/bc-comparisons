@@ -6,14 +6,31 @@ import logging
 import doctest
 import itertools
 import ipaddress
+import multiprocessing as mp
 
 from datetime import datetime
 from collections import Counter
 
-ASN_DB = "ipasn.dat"
+ASN_DB_FNAME = "ipasn.dat"
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
 LOG_LEVEL = logging.INFO
+
+DEFAULT_CONCURRENCY = max(1, mp.cpu_count() - 2)
+
+__asn_db = None
+
+def asn_db(path=None):
+  global __asn_db
+  if __asn_db is not None:
+    return __asn_db
+  if path is not None:
+    logging.info("Loading IPASN database %s", path)
+    __asn_db = pyasn.pyasn(path)
+  else:
+    logging.info("Loading IPASN database %s", ASN_DB_FNAME)
+    __asn_db = pyasn.pyasn(ASN_DB_FNAME)
+  return __asn_db
 
 def time2dt(timestr:str, daystr:str):
     """timestr should be 24-hour time string in format HH:MM:SS
@@ -109,12 +126,9 @@ def counter_isect(*args):
     res += fc
   return res
 
-def ip2asn(ip, asndb=[]):
+def ip2asn(ip, asndb=None):
   try:
-    if len(asndb) == 0:
-      logging.info("Loading IPASN database %s", ASN_DB)
-      asndb.append(pyasn.pyasn(ASN_DB))
-    asndb = asndb[0]
+    asndb = asn_db(path=asndb)
     asn = asndb.lookup(ip)
     if asn[0] is None:
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)

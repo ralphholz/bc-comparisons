@@ -7,6 +7,7 @@ import argparse
 import ipaddress
 import itertools
 import collections
+import multiprocessing as mp
 
 import util
 
@@ -49,21 +50,31 @@ if __name__ == "__main__":
     "where combo is an --inner-delimiter separated list of input filenames.")
   parser.add_argument("--no-grouping", "-ng", action="store_true",
     help="If specified, counts are shown for each set in output of --explore.")
+    
+  parser.add_argument("--concurrency", "-j", type=int, default=util.DEFAULT_CONCURRENCY,
+    help="Number of MP workers to use for reading scanfiles concurrently."
+    " (default={})".format(util.DEFAULT_CONCURRENCY))
 
   ARGS = parser.parse_args()
   
   # Function to transform input IP addresses to comparable format
   transform = IP_TRANSFORMS[ARGS.compare]
 
+  # NOTE: pre-load ASN DB
+  # This may not be necessary, but with mp forking, it save some time
+  util.asn_db()
+
   def process_row(row, keyfunc=lambda r: r[0], valuefunc=lambda r: r[1].strip()):
     key = keyfunc(row)
     logging.info("Processing row key %s", key)
     values = valuefunc(row)
     valuelist = values.strip(ARGS.inner_delimiter).split(ARGS.inner_delimiter)
+
     # transform IP addresses using the selected transformation and remove any
     # that transform to a None value (e.g. un-announced IPs)
     # e.g. IP -> ASN or IP -> /24 prefix etc
-    valuelist = filter(lambda v: v is not None, map(transform, valuelist))
+    with mp.Pool(ARGS.concurrency) as p:
+      valuelist = filter(lambda v: v is not None, p.map(transform, valuelist))
     return key, collections.Counter(valuelist)
 
   # A mapping of {input-filename -> {date -> counter of identifiers}}

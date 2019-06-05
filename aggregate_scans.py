@@ -36,10 +36,9 @@ if __name__ == "__main__":
     parser.add_argument("--keep-ipv6", "-k6", action="store_true",
       help="If specified, node IPv6 addresses will be kept in output.")
 
-    default_concurr = max(1, mp.cpu_count() - 2)
-    parser.add_argument("--concurrency", "-c", type=int, default=default_concurr,
+    parser.add_argument("--concurrency", "-j", type=int, default=util.DEFAULT_CONCURRENCY,
       help="Number of MP workers to use for reading scanfiles concurrently."
-      " (default={})".format(default_concurr))
+      " (default={})".format(util.DEFAULT_CONCURRENCY))
 
     # Output options
     parser.add_argument("--omit-ip", "-oip", action="store_true", 
