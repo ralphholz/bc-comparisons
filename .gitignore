@@ -1,3 +1,5 @@
 sample*
 test-*
 __pycache__
+ipasn*.dat
+rib*.bz2

@@ -2,8 +2,10 @@
 
 import sys
 import csv
+import pyasn
 import logging
 import argparse
+import ipaddress
 import itertools
 import collections
 
@@ -19,6 +21,46 @@ csv.field_size_limit(sys.maxsize)
 #     key	sample1.tsv	sample2.tsv	sample1.tsv;sample2.tsv
 #     2019-05-14	2	3	1
 
+asndb = None
+
+def ip2asn(ip):
+  global asndb
+  try:
+    if asndb is None:
+      asndb = pyasn.pyasn('ipasn.dat')
+    asn = asndb.lookup(ip)
+    if asn[0] is None:
+      return -1
+    return asn[0]
+  except:
+    return -1
+  return -1
+
+def geoip(ip):
+  # TODO
+  raise NotImplementedError
+
+def ip_prefix(ip, prefix):
+  """
+  Returns the IPv4 supernet with the specified prefix of the specified /32
+  address.
+  >>> ip_prefix('8.8.8.8', 24)
+  '8.8.8.0/24'
+  >>> ip_prefix('8.8.8.8', 16)
+  '8.8.0.0/16'
+  """
+  assert prefix <= 32
+  ipnet = ipaddress.ip_network(ip)
+  return str(ipnet.supernet(new_prefix=prefix))
+
+IP_TRANSFORMS = {
+  "ip": lambda x: x,  # do nothing
+  "asn": ip2asn, # map IP to ASN
+  "geo": geoip,  # map IP to geo
+  "24prefix": lambda ip: ip_prefix(ip, 24), # map IP to /24 prefix
+  "16prefix": lambda ip: ip_prefix(ip, 16), # map IP to /16 prefix
+}
+
 if __name__ == "__main__":
   # Configure logging module
   logging.basicConfig(#filename="aggregate_scans.log", 
@@ -32,8 +74,15 @@ if __name__ == "__main__":
     help="Delimiter to use for lists within a field (; by default)")
   parser.add_argument("--ignore-missing-keys", "-imk", action="store_true",
     help="If set, missing keys will be ignored instead of causing an exception.")
+  parser.add_argument("--compare", "-c", choices=sorted(IP_TRANSFORMS.keys()),
+      default="ip", help="What to compare.")
+  parser.add_argument("--explore" "-e", default=None,
+    help="Explore full intersections of a specific date/key.")
 
   ARGS = parser.parse_args()
+  
+  # Function to transform input IP addresses to comparable format
+  transform = IP_TRANSFORMS[ARGS.compare]
 
   # Produce all possible combinations of elements of iterable
   def all_combinations(iterable):
@@ -46,6 +95,7 @@ if __name__ == "__main__":
     key = keyfunc(row)
     values = valuefunc(row)
     valuelist = values.strip(ARGS.inner_delimiter).split(ARGS.inner_delimiter)
+    valuelist = map(transform, valuelist)
     return key, collections.Counter(valuelist)
 
   # A mapping of {input-filename -> {date -> counter of identifiers}}
