@@ -3,9 +3,13 @@
 import re
 import logging
 import doctest
+import itertools
 import ipaddress
 
 from datetime import datetime
+from collections import Counter
+
+ASN_DB = "ipasn.dat"
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
 LOG_LEVEL = logging.INFO
@@ -74,6 +78,78 @@ def btc_scanfile_dt(scanfile: str):
     dt_components[1] = dt_components[1].replace("-", ":")
     isofmt = "T".join(dt_components)
     return str2dt(isofmt)
+
+def counter_isect(*args):
+  """
+  Accepts some collections.Counter objects and returns the intersection of
+  their keys, with the counts being the total count within the intersection.
+  >>> c1 = Counter([1,1,1,2,2,3,4,5])
+  >>> c2 = Counter([1,1,2,7,8,9])
+  >>> c3 = Counter([10,11,12])
+  >>> sorted(counter_isect(c1, c2, c3).items())
+  []
+  >>> sorted(counter_isect(c1, c2).items())
+  [(1, 5), (2, 3)]
+  """
+  assert len(args) >= 1
+
+  # Compute intersection of counter keys
+  isect = args[0].keys()
+  for c in args[1:]:
+    isect &= c.keys()
+
+  # Remove keys that aren't in the intersection
+  filtered = [Counter({k: v for k, v in c.items() if k in isect}) for c in args]
+
+  # Add all the filtered counters
+  res = filtered[0]
+  for fc in filtered[1:]:
+    res += fc
+  return res
+
+def ip2asn(ip, asndb=[]):
+  try:
+    if len(asndb) == 0:
+      logging.info("Loading IPASN database %s", ASN_DB)
+      asndb.append(pyasn.pyasn(ASN_DB))
+    asndb = asndb[0]
+    asn = asndb.lookup(ip)
+    if asn[0] is None:
+      return -1
+    return asn[0]
+  except:
+    return -1
+  return -1
+
+def geoip(ip):
+  # TODO
+  raise NotImplementedError
+
+def ip_prefix(ip, prefix):
+  """
+  Returns the IPv4 supernet with the specified prefix of the specified /32
+  address.
+  >>> ip_prefix('8.8.8.8', 24)
+  '8.8.8.0/24'
+  >>> ip_prefix('8.8.8.8', 16)
+  '8.8.0.0/16'
+  """
+  assert prefix <= 32
+  ipnet = ipaddress.ip_network(ip)
+  return str(ipnet.supernet(new_prefix=prefix))
+
+# Produce all possible combinations of elements of iterable
+def all_combinations(iterable):
+  """
+  Produce all (|i| C 1) + (|i| C 2) + ... + (|i| C |i|) selections of elements
+  from a given iterable i with length |i|.
+  >>> all_combinations([1,2,3])
+  [(1,), (2,), (3,), (1, 2), (1, 3), (2, 3), (1, 2, 3)]
+  """
+  combos = []
+  for i in range(1, len(iterable)+1):
+    combos += list(itertools.combinations(iterable, i))
+  return combos
 
 if __name__ == "__main__":
     doctest.testmod()

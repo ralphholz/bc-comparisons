@@ -21,44 +21,13 @@ csv.field_size_limit(sys.maxsize)
 #     key	sample1.tsv	sample2.tsv	sample1.tsv;sample2.tsv
 #     2019-05-14	2	3	1
 
-asndb = None
-
-def ip2asn(ip):
-  global asndb
-  try:
-    if asndb is None:
-      asndb = pyasn.pyasn('ipasn.dat')
-    asn = asndb.lookup(ip)
-    if asn[0] is None:
-      return -1
-    return asn[0]
-  except:
-    return -1
-  return -1
-
-def geoip(ip):
-  # TODO
-  raise NotImplementedError
-
-def ip_prefix(ip, prefix):
-  """
-  Returns the IPv4 supernet with the specified prefix of the specified /32
-  address.
-  >>> ip_prefix('8.8.8.8', 24)
-  '8.8.8.0/24'
-  >>> ip_prefix('8.8.8.8', 16)
-  '8.8.0.0/16'
-  """
-  assert prefix <= 32
-  ipnet = ipaddress.ip_network(ip)
-  return str(ipnet.supernet(new_prefix=prefix))
-
+# Functions that transform IP addresses to other info
 IP_TRANSFORMS = {
   "ip": lambda x: x,  # do nothing
-  "asn": ip2asn, # map IP to ASN
-  "geo": geoip,  # map IP to geo
-  "24prefix": lambda ip: ip_prefix(ip, 24), # map IP to /24 prefix
-  "16prefix": lambda ip: ip_prefix(ip, 16), # map IP to /16 prefix
+  "asn": util.ip2asn, # map IP to ASN
+  "geo": util.geoip,  # map IP to geo
+  "24prefix": lambda ip: util.ip_prefix(ip, 24), # map IP to /24 prefix
+  "16prefix": lambda ip: util.ip_prefix(ip, 16), # map IP to /16 prefix
 }
 
 if __name__ == "__main__":
@@ -76,25 +45,21 @@ if __name__ == "__main__":
     help="If set, missing keys will be ignored instead of causing an exception.")
   parser.add_argument("--compare", "-c", choices=sorted(IP_TRANSFORMS.keys()),
       default="ip", help="What to compare.")
-  parser.add_argument("--explore" "-e", default=None,
-    help="Explore full intersections of a specific date/key.")
+  parser.add_argument("--explore", "-e", default=None,
+    help="Explore one intersection of a specific date/key. Format: key=combo "
+    "where combo is an --inner-delimiter separated list of input filenames.")
 
   ARGS = parser.parse_args()
   
   # Function to transform input IP addresses to comparable format
   transform = IP_TRANSFORMS[ARGS.compare]
 
-  # Produce all possible combinations of elements of iterable
-  def all_combinations(iterable):
-    combos = []
-    for i in range(1, len(iterable)+1):
-      combos += list(itertools.combinations(iterable, i))
-    return combos
-
   def process_row(row, keyfunc=lambda r: r[0], valuefunc=lambda r: r[1].strip()):
     key = keyfunc(row)
     values = valuefunc(row)
     valuelist = values.strip(ARGS.inner_delimiter).split(ARGS.inner_delimiter)
+    # transform IP addresses using the selected transformation
+    # e.g. IP -> ASN or IP -> /24 prefix etc
     valuelist = map(transform, valuelist)
     return key, collections.Counter(valuelist)
 
@@ -121,15 +86,10 @@ if __name__ == "__main__":
       groups[infile.name] = table
     
   # Generate all possible combinations of the input files
-  combos = all_combinations(groups.keys())
-
-  # Output writer
-  outfields = ["key"]+[ARGS.inner_delimiter.join(combo) for combo in combos]
-  writer = csv.DictWriter(sys.stdout, fieldnames=outfields,
-      delimiter=ARGS.delimiter,  lineterminator="\n")
-  writer.writeheader()
+  combos = util.all_combinations(groups.keys())
 
   if ARGS.ignore_missing_keys:
+    # Remove keys that are not in all input files
     missing_keys = set()
     for fname, sets in groups.items():
       if sets.keys() != keys_seen:
@@ -153,8 +113,7 @@ if __name__ == "__main__":
     if not all_ok:
       raise Exception("Key mismatch in input files")
 
-  # Loop over keys (e.g. dates) in order 
-  for key in sorted(keys):
+  def make_cardinality_outputrow(key):
     # Produce row-wise intersections for the same key for all possible
     # combinations of input files
     rowvalues = {'key': key}
@@ -166,4 +125,38 @@ if __name__ == "__main__":
         else:
           isect &= groups[fname][key].keys()
       rowvalues[ARGS.inner_delimiter.join(combo)] = len(isect)
-    writer.writerow(rowvalues)
+    return rowvalues
+  
+  def make_intersection_outputrows(key, combo):
+    isect = None
+    for fname in combo:
+      nodes = groups[fname][key]
+      if isect is None:
+        isect = nodes
+      else:
+        isect = util.counter_isect(isect, nodes)
+    # generate output rows: key,node,count
+    for (k, v) in sorted(isect.items(), key=lambda t: -t[1]):
+      yield ((key, k, v,))
+
+  # Write exploration data for specific key
+  if ARGS.explore:
+    writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter,
+        lineterminator="\n")
+    key, combo = ARGS.explore.split("=")
+    combo = sorted(combo.split(ARGS.inner_delimiter))
+    logging.info("Writing intersection data for key=%s combo=%s", key, combo)
+    for row in make_intersection_outputrows(key, combo):
+      writer.writerow(row)
+
+  # Write intersection cardinalities
+  else:
+    outfields = ["key"]+[ARGS.inner_delimiter.join(combo) for combo in combos]
+    writer = csv.DictWriter(sys.stdout, fieldnames=outfields,
+        delimiter=ARGS.delimiter,  lineterminator="\n")
+    writer.writeheader()
+
+    # Loop over keys (e.g. dates) in order 
+    for key in sorted(keys):
+      rowvalues = make_cardinality_outputrow(key)
+      writer.writerow(rowvalues)
