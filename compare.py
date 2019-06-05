@@ -48,6 +48,8 @@ if __name__ == "__main__":
   parser.add_argument("--explore", "-e", default=None,
     help="Explore one intersection of a specific date/key. Format: key=combo "
     "where combo is an --inner-delimiter separated list of input filenames.")
+  parser.add_argument("--no-grouping", "-ng", action="store_true",
+    help="If specified, counts are shown for each set in output of --explore.")
 
   ARGS = parser.parse_args()
   
@@ -127,7 +129,7 @@ if __name__ == "__main__":
       rowvalues[ARGS.inner_delimiter.join(combo)] = len(isect)
     return rowvalues
   
-  def make_intersection_outputrows(key, combo):
+  def make_intersection_outputrows(key, combo, group=True):
     isect = None
     for fname in combo:
       nodes = groups[fname][key]
@@ -135,9 +137,21 @@ if __name__ == "__main__":
         isect = nodes
       else:
         isect = util.counter_isect(isect, nodes)
-    # generate output rows: key,node,count
-    for (k, v) in sorted(isect.items(), key=lambda t: -t[1]):
-      yield ((key, k, v,))
+
+    # if we're grouping by value, yield groups
+    if group:
+      # generate output rows: key,node,count
+      for (k, v) in sorted(isect.items(), key=lambda t: -t[1]):
+        yield key, k, v
+    # if we're not grouping then we want to see values for each set in the intersection
+    else:
+      res = []
+      for fname in combo:
+        nodes = groups[fname][key] & isect
+        res += [(key, fname, k, v) for (k, v) in nodes.items()]
+      # sort output rows by (date, reverse:intersectioncardinality, reverse:setcardinality)
+      for r in sorted(res, key=lambda t: (t[0], -isect[t[2]], -t[3])):
+        yield r
 
   # Write exploration data for specific key
   if ARGS.explore:
@@ -146,7 +160,7 @@ if __name__ == "__main__":
     key, combo = ARGS.explore.split("=")
     combo = sorted(combo.split(ARGS.inner_delimiter))
     logging.info("Writing intersection data for key=%s combo=%s", key, combo)
-    for row in make_intersection_outputrows(key, combo):
+    for row in make_intersection_outputrows(key, combo, group=(not ARGS.no_grouping)):
       writer.writerow(row)
 
   # Write intersection cardinalities

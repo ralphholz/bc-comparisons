@@ -115,11 +115,11 @@ def ip2asn(ip, asndb=[]):
     asndb = asndb[0]
     asn = asndb.lookup(ip)
     if asn[0] is None:
-      return -1
+      raise KeyError("Unknown ASN for IP {}".format(ip))
     return asn[0]
   except:
-    return -1
-  return -1
+    raise KeyError("Unknown ASN for IP {}".format(ip))
+  raise KeyError("Unknown ASN for IP {}".format(ip))
 
 def geoip(ip):
   # TODO
