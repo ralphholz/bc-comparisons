@@ -12,6 +12,7 @@ ipasn-rib:
 ipasn.dat: ipasn-rib
 	$(eval RIB_DATE = $(shell find . -name 'rib.*.bz2' | head -1 | sed -r 's/.+([0-9]{8})\..*/\1/'))
 	pyasn_util_convert.py --single rib.*.bz2 ipasn-$(RIB_DATE).dat
+	find . -name 'ipasn.dat' -exec rm -f {} +
 	ln -s ./ipasn-*.dat ./ipasn.dat
 	find . -name 'rib.*.bz2' -exec rm -f {} +
 
