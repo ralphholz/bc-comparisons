@@ -2,7 +2,6 @@
 
 import sys
 import csv
-import pyasn
 import logging
 import argparse
 import ipaddress

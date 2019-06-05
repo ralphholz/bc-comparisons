@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import pyasn
 import logging
 import doctest
 import itertools
