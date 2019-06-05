@@ -159,7 +159,7 @@ if __name__ == "__main__":
         nodes = groups[fname][key] & isect
         res += [(key, fname, k, v) for (k, v) in nodes.items()]
       # sort output rows by (date, reverse:intersectioncardinality, fname)
-      for r in sorted(res, key=lambda t: (t[0], -isect[t[2]], t[1])):
+      for r in sorted(res, key=lambda t: (t[0], -isect[t[2]], t[2], t[1])):
         yield r
 
   # Write exploration data for specific key
