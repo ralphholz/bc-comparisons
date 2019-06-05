@@ -117,10 +117,10 @@ def ip2asn(ip, asndb=[]):
     asndb = asndb[0]
     asn = asndb.lookup(ip)
     if asn[0] is None:
-      logging.warning("util.ip2asn: unknown ASN for IP %s", ip)
+      logging.debug("util.ip2asn: unknown ASN for IP %s", ip)
     return asn[0]
   except:
-    logging.warning("util.ip2asn: error resolving ASN for IP %s", ip)
+    logging.error("util.ip2asn: error resolving ASN for IP %s", ip)
     return None
 
 def geoip(ip):
