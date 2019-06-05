@@ -57,6 +57,7 @@ if __name__ == "__main__":
 
   def process_row(row, keyfunc=lambda r: r[0], valuefunc=lambda r: r[1].strip()):
     key = keyfunc(row)
+    logging.info("Processing row key %s", key)
     values = valuefunc(row)
     valuelist = values.strip(ARGS.inner_delimiter).split(ARGS.inner_delimiter)
     # transform IP addresses using the selected transformation and remove any
