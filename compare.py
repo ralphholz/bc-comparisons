@@ -73,8 +73,7 @@ if __name__ == "__main__":
     # transform IP addresses using the selected transformation and remove any
     # that transform to a None value (e.g. un-announced IPs)
     # e.g. IP -> ASN or IP -> /24 prefix etc
-    with mp.Pool(ARGS.concurrency) as p:
-      valuelist = filter(lambda v: v is not None, p.map(transform, valuelist))
+    valuelist = filter(lambda v: v is not None, map(transform, valuelist))
     return key, collections.Counter(valuelist)
 
   # A mapping of {input-filename -> {date -> counter of identifiers}}
@@ -92,12 +91,16 @@ if __name__ == "__main__":
     with infile as inf:
       reader = csv.reader(inf, delimiter=ARGS.delimiter)
       table = {}
-      for row in reader:
-        key, valueset = process_row(row)
+      
+      with mp.Pool(ARGS.concurrency) as p:
+        rows = p.map(process_row, reader)
+
+      for (key, valueset) in rows:
         if key not in keys_seen:
           keys_seen.add(key)
           keys.append(key)
         table[key] = valueset
+
       groups[infile.name] = table
     
   # Generate all possible combinations of the input files
