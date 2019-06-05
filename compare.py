@@ -158,8 +158,8 @@ if __name__ == "__main__":
       for fname in combo:
         nodes = groups[fname][key] & isect
         res += [(key, fname, k, v) for (k, v) in nodes.items()]
-      # sort output rows by (date, reverse:intersectioncardinality, reverse:setcardinality)
-      for r in sorted(res, key=lambda t: (t[0], -isect[t[2]], -t[3])):
+      # sort output rows by (date, reverse:intersectioncardinality, fname)
+      for r in sorted(res, key=lambda t: (t[0], -isect[t[2]], t[1])):
         yield r
 
   # Write exploration data for specific key
