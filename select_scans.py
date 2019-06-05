@@ -157,7 +157,8 @@ if __name__ == "__main__":
     ARGS = parser.parse_args()
 
     # Initialize TSV output writer
-    writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter)
+    writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter,
+        lineterminator="\n")
 
     # Initialize correct loader for selected scanfile type
     loader_cls = FORMAT_LOADERS[ARGS.format]

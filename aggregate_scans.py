@@ -75,10 +75,14 @@ if __name__ == "__main__":
             date_scanfiles[date] = date_scanfiles[date].union(scanfiles)
 
     # Initialize TSV output writer
-    writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter)
+    writer = csv.writer(sys.stdout, delimiter=ARGS.delimiter,
+        lineterminator="\n")
     
     # Get correct loader for selected scanfile type
     loader_cls = load_scan.FORMAT_LOADERS[ARGS.format]
+
+    # Mutex for file writing
+    lock = mp.Lock()
 
     # Loads confirmed nodes from a given scanfile using a given Loader class
     # NOTE: function is defined here because it wraps ARGS and loader_cls
@@ -89,7 +93,11 @@ if __name__ == "__main__":
             loader.drop_ipv6()
         return loader.nodes
 
-    def build_nodelist_for_date(date_scanfiles):
+    def writerow(row):
+        with lock:
+          writer.writerow(row)
+
+    def build_nodelist_for_date(date_scanfiles: tuple):
         date, scanfiles = date_scanfiles
 
         nodeset_for_date = set()
@@ -110,13 +118,10 @@ if __name__ == "__main__":
         # Sort to return a deterministic ordering of nodes
         nodelist_for_date = sorted(nodelist_for_date)
         nodelist_for_date = ARGS.inner_delimiter.join(nodelist_for_date)
-        return (date, nodelist_for_date)
-        #writer.writerow((date, nodelist_for_date,))
+        writerow((date, nodelist_for_date,))
 
+    # Load scans for each date
     with mp.Pool(ARGS.concurrency) as p:
-        # Load scans for each date
-        res = p.map(build_nodelist_for_date, sorted(date_scanfiles.items()))
-        for row in res:
-          writer.writerow(row)
+        p.map(build_nodelist_for_date, sorted(date_scanfiles.items()))
 
     logging.debug("===FINISH===")

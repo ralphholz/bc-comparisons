@@ -74,9 +74,9 @@ if __name__ == "__main__":
   combos = all_combinations(groups.keys())
 
   # Output writer
-  outfields = ['key']+[ARGS.inner_delimiter.join(combo) for combo in combos]
+  outfields = ["key"]+[ARGS.inner_delimiter.join(combo) for combo in combos]
   writer = csv.DictWriter(sys.stdout, fieldnames=outfields,
-      delimiter=ARGS.delimiter, dialect=csv.unix_dialect)
+      delimiter=ARGS.delimiter,  lineterminator="\n")
   writer.writeheader()
 
   if ARGS.ignore_missing_keys:
