@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     # Optional args
     parser.add_argument("--delimiter", "-d", default="\t",
-      help="Output field delimiter (tab by default)")
+      help="Input and output field delimiter (tab by default)")
     parser.add_argument("--inner-delimiter", "-id", default=";", 
       help="Delimiter to use for lists within a field (; by default)")
     parser.add_argument("--keep-ipv6", "-k6", action="store_true",
