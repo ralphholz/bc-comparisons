@@ -140,9 +140,10 @@ if __name__ == "__main__":
       help="Don't include scan files before the given UTC ISO date/time string")
     parser.add_argument("--not-after", "-na", default=None,
       help="Don't include scan files after the given UTC ISO date/time string")
-    parser.add_argument("--downsample", "-ds", default="10:00:00",
+    parser.add_argument("--downsample", "-ds", default="12:00:00",
       help="Comma-separated list of 24-hour times in HH:MM:SS format. "
-           "Downsample scans by selecting closest scans to each of these times each day.")
+           "Downsample scans by selecting closest scans to each of these times each day. "
+           "default=12:00:00")
     parser.add_argument("--each-scan", "-e", action="store_true",
       help="If given, outputs one scanfile per output row instead of using date buckets.")
 
