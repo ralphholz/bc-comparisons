@@ -29,7 +29,7 @@ class ScansLoader:
         """Extract UTC datetime from given scan file path"""
         raise NotImplementedError
 
-    def campaigns(self, max_allowed_dist_days=3):
+    def campaigns(self, max_allowed_dist_days=4):
         """
         Returns a list of campaigns in the form (start_date, end_date)
         where a gap of longer than max_allowed_dist_days days causes the
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument("--downsample", "-ds", default="12:00:00",
       help="Comma-separated list of 24-hour times in HH:MM:SS format. "
            "Downsample scans by selecting closest scans to each of these times each day. "
-           "default=12:00:00")
+           "default=12:00:00. Set to False to disable.")
     parser.add_argument("--each-scan", "-e", action="store_true",
       help="If given, outputs one scanfile per output row instead of using date buckets.")
     parser.add_argument("--campaigns", "-c", action="store_true",
@@ -199,11 +199,12 @@ if __name__ == "__main__":
     loader.filter(not_before_dt, not_after_dt)
 
     # Downsample
-    TIME_RE = re.compile('[0-9]{2}:[0-9]{2}:[0-9]{2}(,[0-9]{2}:[0-9]{2}:[0-9]{2})*')
-    if TIME_RE.fullmatch(ARGS.downsample.strip()):
-        downsample_targets = ARGS.downsample.strip().split(',')
-        logging.info("Downsampling to times: %s", ", ".join(downsample_targets))
-        loader.downsample(targets=downsample_targets)
+    if not ARGS.downsample.strip().upper().startswith("F"):
+        TIME_RE = re.compile('[0-9]{2}:[0-9]{2}:[0-9]{2}(,[0-9]{2}:[0-9]{2}:[0-9]{2})*')
+        if TIME_RE.fullmatch(ARGS.downsample.strip()):
+            downsample_targets = ARGS.downsample.strip().split(',')
+            logging.info("Downsampling to times: %s", ", ".join(downsample_targets))
+            loader.downsample(targets=downsample_targets)
 
     # Sort by time
     loader.sort()
