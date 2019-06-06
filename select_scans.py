@@ -29,6 +29,31 @@ class ScansLoader:
         """Extract UTC datetime from given scan file path"""
         raise NotImplementedError
 
+    def campaigns(self, max_allowed_dist_days=3):
+        """
+        Returns a list of campaigns in the form (start_date, end_date)
+        where a gap of longer than max_allowed_dist_days days causes the
+        following scan to become part of the next campaign.
+        """
+        campaigns = []
+        prev = None
+        campaign_start = None
+        
+        for dt in map(self.filedt, self.scanfiles):
+            # edge case: first campaign
+            if campaign_start is None:
+                campaign_start = dt
+            else:
+                if (dt.date() - prev.date()).days > max_allowed_dist_days:
+                    camp = (campaign_start.isoformat(), prev.isoformat())
+                    campaign_start = dt
+                    campaigns.append(camp)
+            prev = dt
+
+        # edge case: final campaign
+        campaigns.append((campaign_start.isoformat(), prev.isoformat(),))
+        return campaigns
+
     def filter(self, not_before:str=None, not_after:str=None, custom=None):
         """Remove scan files not meeting time restrictions or custom condition.
         not_before and not_after should be type datetime in UTC."""
@@ -146,6 +171,9 @@ if __name__ == "__main__":
            "default=12:00:00")
     parser.add_argument("--each-scan", "-e", action="store_true",
       help="If given, outputs one scanfile per output row instead of using date buckets.")
+    parser.add_argument("--campaigns", "-c", action="store_true",
+      help="If given, normal output is suppressed. Instead, the script outputs "
+           "start and end dates for each campaign.")
 
     # Required args
     parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
@@ -181,7 +209,11 @@ if __name__ == "__main__":
     loader.sort()
 
     # Produce output
-    if ARGS.each_scan:
+    if ARGS.campaigns:
+        camp = loader.campaigns()
+        for c in camp:
+            writer.writerow(c)
+    elif ARGS.each_scan:
         for iso_sf in loader.scanfiles_and_isotimes():
             writer.writerow(iso_sf)
     else:
