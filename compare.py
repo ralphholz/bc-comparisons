@@ -36,7 +36,7 @@ if __name__ == "__main__":
     format=util.LOG_FMT, level=util.LOG_LEVEL)
 
   parser = argparse.ArgumentParser()
-  parser.add_argument("infiles", nargs="*", type=argparse.FileType("r"))
+  parser.add_argument("infiles", nargs="+", type=argparse.FileType("r"))
   parser.add_argument("--delimiter", "-d", default="\t",
     help="Input and output field delimiter (tab by default)")
   parser.add_argument("--inner-delimiter", "-id", default=";", 
