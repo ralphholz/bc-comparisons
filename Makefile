@@ -2,6 +2,8 @@
 
 deps: pip ipasn.dat
 
+# TODO: task to clone btccrawlgo-processing into parent dir and pip install 
+
 pip:
 	pip install -r requirements.txt
 	
