@@ -167,5 +167,14 @@ def all_combinations(iterable):
     combos += list(itertools.combinations(iterable, i))
   return combos
 
+def read_pickle(pickle_fname):
+  with open(pickle_fname, 'rb') as inf:
+    result = pickle.load(inf)
+  return result
+
+def write_pickle(data, pickle_fname):
+  with open(pickle_fname, 'wb') as outf:
+    pickle.dump(data, outf)
+
 if __name__ == "__main__":
     doctest.testmod()
