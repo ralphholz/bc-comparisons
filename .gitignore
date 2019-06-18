@@ -3,4 +3,6 @@ test-*
 __pycache__
 ipasn*.dat
 rib*.bz2
-scripts/cymru.*
+asn/*.bz2
+asn/*.dat
+asn/dates_to_download
