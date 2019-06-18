@@ -3,3 +3,4 @@ test-*
 __pycache__
 ipasn*.dat
 rib*.bz2
+scripts/cymru.*
