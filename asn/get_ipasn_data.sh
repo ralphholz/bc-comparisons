@@ -3,8 +3,20 @@
 set -e
 
 NOT_BEFORE="2019-01-21"
-NOT_AFTER=`date --rfc-3339=date`
+NOT_AFTER=`date --date=yesterday --rfc-3339=date`
 
-python3 generate_pyasn_dates.py --not-before $NOT_BEFORE --not-after $NOT_AFTER > dates_to_download
-pyasn_util_download.py --dates-from-file dates_to_download
-pyasn_util_convert.py --bulk $NOT_BEFORE $NOT_AFTER
+DATES_TO_DOWNLOAD_FNAME="dates_to_download"
+
+# Generate dates to download (only dates that haven't already been downloaded)
+python3 generate_pyasn_dates.py --not-before $NOT_BEFORE --not-after $NOT_AFTER > $DATES_TO_DOWNLOAD_FNAME
+
+# Download RIB files
+pyasn_util_download.py --dates-from-file $DATES_TO_DOWNLOAD_FNAME
+
+# Convert RIB files to IPASN files
+while read date; do
+  RIBFILE=`find . -name "rib.$date.*.bz2" | head -1`
+  if [[ -f "$RIBFILE" ]]; then
+    pyasn_util_convert.py --single $RIBFILE ipasn_$date.dat
+  fi
+done < $DATES_TO_DOWNLOAD_FNAME
