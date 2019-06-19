@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import pyasn
 import logging
@@ -8,29 +9,40 @@ import itertools
 import ipaddress
 import multiprocessing as mp
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import Counter
 
-ASN_DB_FNAME = "ipasn.dat"
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+
+ASN_DB_FNAME = "ipasn_{}.dat"
+IPASN_DIR = os.path.join(SCRIPT_DIR, "asn")
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
 LOG_LEVEL = logging.INFO
 
 DEFAULT_CONCURRENCY = max(1, mp.cpu_count() - 2)
 
-__asn_db = None
+__asn_db = {}
 
-def asn_db(path=None):
+def asn_db(date: str = None):
+  """
+  Retrieve IPASN DB instance for given date in format YYYY-MM-DD.
+  If date is None, uses yesterday's date.
+  """
   global __asn_db
-  if __asn_db is not None:
-    return __asn_db
-  if path is not None:
+  if date is None:
+    date = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+    logging.warning("No date specified for ASN DB, using %s", date)
+  if date not in __asn_db:
+    # IPASN not loaded -- load it now
+    path = os.path.join(IPASN_DIR, ASN_DB_FNAME.format(date.replace("-", "")))
     logging.info("Loading IPASN database %s", path)
-    __asn_db = pyasn.pyasn(path)
-  else:
-    logging.info("Loading IPASN database %s", ASN_DB_FNAME)
-    __asn_db = pyasn.pyasn(ASN_DB_FNAME)
-  return __asn_db
+    try:
+      __asn_db[date] = pyasn.pyasn(path)
+    except OSError as e:
+      logging.error("Could not load IPASN database %s", path)
+      raise e
+  return __asn_db[date]
 
 def time2dt(timestr:str, daystr:str):
     """timestr should be 24-hour time string in format HH:MM:SS
@@ -126,9 +138,12 @@ def counter_isect(*args):
     res += fc
   return res
 
-def ip2asn(ip, asndb=None):
+def ip2asn(ip: str, date: str = None):
+  """
+  Return AS number for IP address on a given date (YYYY-MM-DD)
+  """
   try:
-    asndb = asn_db(path=asndb)
+    asndb = asn_db(date)
     asn = asndb.lookup(ip)
     if asn[0] is None:
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)

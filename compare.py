@@ -62,10 +62,6 @@ if __name__ == "__main__":
   # Function to transform input IP addresses to comparable format
   transform = IP_TRANSFORMS[ARGS.compare]
 
-  # NOTE: pre-load ASN DB
-  # This may not be necessary, but with mp forking, it save some time
-  util.asn_db()
-
   def process_row(row, keyfunc=lambda r: r[0], valuefunc=lambda r: r[1].strip()):
     key = keyfunc(row)
     logging.info("Processing row key %s", key)
