@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 
+import os
 import argparse
 import datetime
+
+ASN_DB_FNAME = "ipasn_{}.dat"
+
+def ipasn_file_exists(date: str):
+  path = ASN_DB_FNAME.format(date.replace("-", ""))
+  return os.path.isfile(path)
 
 def daterange(fromdate, todate):
   if type(fromdate) is not datetime.datetime:
@@ -22,4 +29,6 @@ if __name__ == '__main__':
   ARGS = parser.parse_args()
 
   for dt in daterange(ARGS.not_before, ARGS.not_after):
-    print(dt.strftime("%Y%m%d"))
+    datestr = dt.strftime("%Y%m%d")
+    if not ipasn_file_exists(datestr):
+      print(datestr)
