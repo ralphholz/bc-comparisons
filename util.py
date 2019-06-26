@@ -3,6 +3,7 @@
 import os
 import re
 import pyasn
+import bisect
 import logging
 import doctest
 import itertools
@@ -190,6 +191,26 @@ def read_pickle(pickle_fname):
 def write_pickle(data, pickle_fname):
   with open(pickle_fname, 'wb') as outf:
     pickle.dump(data, outf)
+
+def values_in_range(l, start, end):
+  """
+  Returns a slice of the list l containing all values greater than or equal to
+  start and less than or equal to end.
+  >>> values_in_range([1,2,3,4,5], 2, 4)
+  [2, 3, 4]
+  >>> values_in_range([1,2,3,4,5], 0, 4)
+  [1, 2, 3, 4]
+  >>> values_in_range([1,2,3,4,5], 5, 6)
+  [5]
+  >>> values_in_range([1,2,3,4,5], 7, 10)
+  []
+  """
+  l = sorted(l)
+  i = bisect.bisect_left(l, start)
+  j = bisect.bisect_right(l, end)
+  if i == len(l) or not j:
+    return []
+  return l[i:j]
 
 if __name__ == "__main__":
     doctest.testmod()
