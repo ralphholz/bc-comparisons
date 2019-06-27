@@ -19,7 +19,7 @@ ASN_DB_FNAME = "ipasn_{}.dat"
 IPASN_DIR = os.path.join(SCRIPT_DIR, "asn")
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.WARNING
 
 DEFAULT_CONCURRENCY = max(1, mp.cpu_count() - 2)
 
