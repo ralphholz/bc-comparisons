@@ -4,6 +4,7 @@ import sys
 import csv
 import bisect
 import logging
+import datetime
 import argparse
 import collections
 
@@ -12,7 +13,7 @@ import util
 csv.field_size_limit(sys.maxsize)
 
 class CoreNodes:
-  def __init__(self, date_nodes: dict, backcheck_t: int):
+  def __init__(self, date_nodes: dict):
     if len(date_nodes) == 0:
       raise ValueError("date_nodes must be non-empty")
     self.data = {k: collections.Counter(set(v)) for k, v in date_nodes.items()}
@@ -24,13 +25,42 @@ class CoreNodes:
     # self._build_node_scanmap()
 
   def core(self, start_date, end_date, percentile = 0.9):
+    """
+    Return the set of nodes which appear in percentile% of all scans in the
+    given date interval [start_date, end_date]
+    """
+    # print(start_date, end_date, percentile)
     # Find scan range for dates
     scans = util.values_in_range(self.scandates, start_date, end_date)
     # Count occurrences of each node in each scan in the range
     totals = collections.Counter()
     for scan in scans:
       totals += self.data[scan]
-    return list(filter(lambda n: totals[n]/len(scans) >= percentile, totals))
+    # sort for determinism
+    return sorted(filter(lambda n: totals[n]/len(scans) >= percentile, totals))
+
+  def rolling_core(self, backcheck: int, percentile: float = 0.9):
+    """
+    Generator that returns daily core nodes based on the previous backcheck
+    days, where a core node is one which has appeared in percentile% of scans
+    in the rolling backcheck period.
+    """
+    start = self.scandates[0]
+    end = self.scandates[-1]
+    start_dt = util.str2dt(start)
+    end_dt = util.str2dt(end)
+    if (end_dt - start_dt).days < backcheck:
+      raise ValueError("backcheck must not exceed total length of campaign")
+    # establish the initial sliding window
+    core_start = start_dt
+    core_end = start_dt + datetime.timedelta(days=backcheck)
+    # print(core_start, core_end)
+    # slide the window along
+    while core_end <= end_dt:
+      yield (core_start, core_end, self.core(core_start.date().isoformat(), 
+        core_end.date().isoformat(), percentile=percentile),)
+      core_start += datetime.timedelta(days=1)
+      core_end += datetime.timedelta(days=1)
 
   # def _build_node_scanmap(self):
     # logging.info("Building node -> scans map")
@@ -39,7 +69,6 @@ class CoreNodes:
     #   logging.debug("Building node -> scans map for key={}".format(date))
     #   for node in nodes:
     #     bisect.insort(node_scanmap[node], seld.__scan_ids[date])
-
 
 # if __name__ == "__main__":
 #   # Configure logging module

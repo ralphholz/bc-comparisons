@@ -195,7 +195,7 @@ def write_pickle(data, pickle_fname):
 def values_in_range(l, start, end):
   """
   Returns a slice of the list l containing all values greater than or equal to
-  start and less than or equal to end.
+  start and less than or equal to end. i.e., all values of l in [start, end]
   >>> values_in_range([1,2,3,4,5], 2, 4)
   [2, 3, 4]
   >>> values_in_range([1,2,3,4,5], 0, 4)
