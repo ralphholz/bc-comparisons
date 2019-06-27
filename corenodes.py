@@ -24,26 +24,43 @@ class CoreNodes:
     # self.start_rolling_date = util.str2dt(self.scandates[0]) + datetime.timedelta(days=backcheck_t-1)
     # self._build_node_scanmap()
 
-  def core(self, start_date, end_date, percentile = 0.9):
+  def scans_in_range(self, start_date, end_date):
     """
-    Return the set of nodes which appear in percentile% of all scans in the
-    given date interval [start_date, end_date]
+    Return a list of scans in the given date range.
+    """
+    return util.values_in_range(self.scandates, start_date, end_date)
+
+  def core(self, start_date, end_date, percentile = 0.9, invert: bool = False):
+    """
+    Return the list of nodes which appear in percentile% of all scans in the
+    given date interval [start_date, end_date], and the number of total nodes.
+    If invert is True, the set is inverted and the method returns NON-CORE
+    nodes instead.
+    Returns a tuple of the format:
+    (total_number_of_nodes_in_window:int, sorted_list_of_nodes:list)
     """
     # print(start_date, end_date, percentile)
     # Find scan range for dates
-    scans = util.values_in_range(self.scandates, start_date, end_date)
+    scans = self.scans_in_range(start_date, end_date)
     # Count occurrences of each node in each scan in the range
     totals = collections.Counter()
     for scan in scans:
       totals += self.data[scan]
     # sort for determinism
-    return sorted(filter(lambda n: totals[n]/len(scans) >= percentile, totals))
+    if invert:
+      return len(totals), sorted(filter(lambda n: not(totals[n]/len(scans) >= percentile), totals))
+    else:
+      return len(totals), sorted(filter(lambda n: totals[n]/len(scans) >= percentile, totals))
 
-  def rolling_core(self, backcheck: int, percentile: float = 0.9):
+  def rolling_core(self, backcheck: int, percentile: float = 0.9, 
+      invert: bool = False):
     """
     Generator that returns daily core nodes based on the previous backcheck
     days, where a core node is one which has appeared in percentile% of scans
     in the rolling backcheck period.
+    Yields tuples of the format:
+    (start_date:datetime, end_date:datetime, 
+     total_number_of_nodes_in_window:int, sorted_list_of_nodes:list)
     """
     start = self.scandates[0]
     end = self.scandates[-1]
@@ -53,12 +70,13 @@ class CoreNodes:
       raise ValueError("backcheck must not exceed total length of campaign")
     # establish the initial sliding window
     core_start = start_dt
-    core_end = start_dt + datetime.timedelta(days=backcheck)
+    core_end = start_dt + datetime.timedelta(days=backcheck-1)
     # print(core_start, core_end)
     # slide the window along
     while core_end <= end_dt:
-      yield (core_start, core_end, self.core(core_start.date().isoformat(), 
-        core_end.date().isoformat(), percentile=percentile),)
+      totalnodes, core = self.core(core_start.date().isoformat(), 
+        core_end.date().isoformat(), percentile=percentile, invert = invert)
+      yield (core_start, core_end, totalnodes, core)
       core_start += datetime.timedelta(days=1)
       core_end += datetime.timedelta(days=1)
 
