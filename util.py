@@ -229,7 +229,8 @@ class Counter:
     return self
 
   def __sub__(self, other):
-    for k in other:
+    intersect = self.counts.keys() & other.keys()
+    for k in intersect:
       self.counts[k] = self.counts.get(k, 0) - other[k]
     return self
 
