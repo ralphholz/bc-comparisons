@@ -16,7 +16,7 @@ class CoreNodes:
   def __init__(self, date_nodes: dict):
     if len(date_nodes) == 0:
       raise ValueError("date_nodes must be non-empty")
-    self.data = {k: util.Counter(set(v)) for k, v in date_nodes.items()}
+    self.data = {k: collections.Counter(set(v)) for k, v in date_nodes.items()}
     self.scandates = sorted(self.data.keys())
     self.__nodecount_range_cache = {}
     # self.__scan_ids = {date: i for i, date in enumerate(self.scandates)}
@@ -53,7 +53,7 @@ class CoreNodes:
         to_subtract = set(scans_prev) - set(scans)
         to_add = set(scans) - set(scans_prev)
 
-        new_totals = util.Counter() + prev_totals
+        new_totals = collections.Counter() + prev_totals
         for scan in to_subtract:
           new_totals -= self.data[scan]
         for scan in to_add:
@@ -63,7 +63,7 @@ class CoreNodes:
       # If not, we really do need to compute it from scratch, unfortunately
       else:
         # Count occurrences of each node in each scan in the range
-        totals = util.Counter()
+        totals = collections.Counter()
         for scan in scans:
           totals += self.data[scan]
         self.__nodecount_range_cache[(start_date, end_date)] = totals
