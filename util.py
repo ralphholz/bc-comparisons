@@ -15,7 +15,7 @@ from collections import Counter
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-ASN_DB_FNAME = "ipasn_{}.dat"
+ASN_DB_FNAME = "ipasn.dat.gz"
 IPASN_DIR = os.path.join(SCRIPT_DIR, "asn")
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
@@ -36,7 +36,7 @@ def asn_db(date: str = None):
     logging.warning("No date specified for ASN DB, using %s", date)
   if date not in __asn_db:
     # IPASN not loaded -- load it now
-    path = os.path.join(IPASN_DIR, ASN_DB_FNAME.format(date.replace("-", "")))
+    path = os.path.join(IPASN_DIR, date, ASN_DB_FNAME)
     logging.info("Loading IPASN database %s", path)
     try:
       __asn_db[date] = pyasn.pyasn(path)
@@ -149,8 +149,8 @@ def ip2asn(ip: str, date: str = None):
     if asn[0] is None:
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)
     return asn[0]
-  except:
-    logging.error("util.ip2asn: error resolving ASN for IP %s", ip)
+  except Exception as ex:
+    logging.info("util.ip2asn: error resolving ASN for IP %s: %s", ip, e)
     return None
 
 def geoip(ip):
