@@ -11,7 +11,6 @@ import ipaddress
 import multiprocessing as mp
 
 from datetime import datetime, timedelta
-from collections import Counter
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -211,6 +210,51 @@ def values_in_range(l, start, end):
   if i == len(l) or not j:
     return []
   return l[i:j]
+
+class Counter:
+  def __init__(self, iterable: iter = None):
+    self.counts = {}
+    if iterable:
+      self.update(iterable)
+
+  def __iter__(self):
+    return iter(self.counts)
+
+  def __getitem__(self, key):
+    return self.counts.get(key, 0)
+    
+  def __add__(self, other):
+    for k in other:
+      self.counts[k] = self.counts.get(k, 0) + other[k]
+    return self
+
+  def __sub__(self, other):
+    for k in other:
+      self.counts[k] = self.counts.get(k, 0) - other[k]
+    return self
+
+  def __str__(eslf):
+    return str(self.counts)
+
+  def __len__(self):
+    return len(self.counts)
+
+  def update(self, iterable: iter):
+    if type(iterable) is dict:
+      for item in iterable:
+        self.counts[item] = self.counts.get(item, 0) + iterable[item]
+    else:
+      for item in iterable:
+        self.counts[item] = self.counts.get(item, 0) + 1
+
+  def keys(self):
+    return self.counts.keys()
+
+  def items(self):
+    return self.counts.items()
+
+  def values(self):
+    return self.counts.values()
 
 if __name__ == "__main__":
     doctest.testmod()
