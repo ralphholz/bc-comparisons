@@ -31,7 +31,7 @@ class CoreNodes:
     """
     return util.values_in_range(self.scandates, start_date, end_date)
 
-  def range_totals(self, start_date, end_date):
+  def _range_totals(self, start_date, end_date):
     """
     Returns counts of how many nodes appear across all scans in the given
     range. e.g. Counter({'node1': 1, 'node2': 4, ...})
