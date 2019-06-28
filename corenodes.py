@@ -18,6 +18,7 @@ class CoreNodes:
       raise ValueError("date_nodes must be non-empty")
     self.data = {k: collections.Counter(set(v)) for k, v in date_nodes.items()}
     self.scandates = sorted(self.data.keys())
+    self.__nodecount_range_cache = {}
     # self.__scan_ids = {date: i for i, date in enumerate(self.scandates)}
     # self.backcheck_t = backcheck_t
     # # first date in our rolling range will be 
@@ -29,6 +30,22 @@ class CoreNodes:
     Return a list of scans in the given date range.
     """
     return util.values_in_range(self.scandates, start_date, end_date)
+
+  def range_totals(self, start_date, end_date):
+    """
+    Returns counts of how many nodes appear across all scans in the given
+    range. e.g. Counter({'node1': 1, 'node2': 4, ...})
+    """
+    # Cache results for efficiency
+    if (start_date, end_date) not in self.__nodecount_range_cache:
+      # Find scan range for dates
+      scans = self.scans_in_range(start_date, end_date)
+      # Count occurrences of each node in each scan in the range
+      totals = collections.Counter()
+      for scan in scans:
+        totals += self.data[scan]
+      self.__nodecount_range_cache[(start_date, end_date)] = totals
+    return self.__nodecount_range_cache[(start_date, end_date)]
 
   def core(self, start_date, end_date, percentile = 0.9, invert: bool = False):
     """
@@ -43,9 +60,7 @@ class CoreNodes:
     # Find scan range for dates
     scans = self.scans_in_range(start_date, end_date)
     # Count occurrences of each node in each scan in the range
-    totals = collections.Counter()
-    for scan in scans:
-      totals += self.data[scan]
+    totals = self._range_totals(start_date, end_date)
     # sort for determinism
     if invert:
       return len(totals), sorted(filter(lambda n: not(totals[n]/len(scans) >= percentile), totals))
