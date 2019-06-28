@@ -7,15 +7,10 @@ import logging
 import datetime
 import argparse
 import collections
-import multiprocessing as mp
 
 import util
 
 csv.field_size_limit(sys.maxsize)
-
-def instancemethod_worker(instance_method_args):
-  instance, method, args = instance_method_args
-  return getattr(instance, method)(*args)
 
 class CoreNodes:
   def __init__(self, date_nodes: dict):
@@ -41,15 +36,37 @@ class CoreNodes:
     Returns counts of how many nodes appear across all scans in the given
     range. e.g. Counter({'node1': 1, 'node2': 4, ...})
     """
+    start_dt = util.str2dt(start_date)
+    end_dt = util.str2dt(end_date)
     # Cache results for efficiency
     if (start_date, end_date) not in self.__nodecount_range_cache:
       # Find scan range for dates
       scans = self.scans_in_range(start_date, end_date)
-      # Count occurrences of each node in each scan in the range
-      totals = collections.Counter()
-      for scan in scans:
-        totals += self.data[scan]
-      self.__nodecount_range_cache[(start_date, end_date)] = totals
+
+      # Check if one day back is in the cache (useful because we use +1day sliding windows)
+      prev_start = (start_dt - datetime.timedelta(days=1)).date().isoformat()
+      prev_end = (end_dt - datetime.timedelta(days=1)).date().isoformat()
+
+      if (prev_start, prev_end) in self.__nodecount_range_cache:
+        scans_prev = self.scans_in_range(prev_start, prev_end)
+        prev_totals = self.__nodecount_range_cache[(prev_start, prev_end)]
+        to_subtract = set(scans_prev) - set(scans)
+        to_add = set(scans) - set(scans_prev)
+
+        new_totals = collections.Counter() + prev_totals
+        for scan in to_subtract:
+          new_totals -= self.data[scan]
+        for scan in to_add:
+          new_totals += self.data[scan]
+        self.__nodecount_range_cache[(start_date, end_date)] = new_totals
+
+      # If not, we really do need to compute it from scratch, unfortunately
+      else:
+        # Count occurrences of each node in each scan in the range
+        totals = collections.Counter()
+        for scan in scans:
+          totals += self.data[scan]
+        self.__nodecount_range_cache[(start_date, end_date)] = totals
     return self.__nodecount_range_cache[(start_date, end_date)]
 
   def core(self, start_date, end_date, percentile = 0.9, invert: bool = False):
@@ -73,9 +90,9 @@ class CoreNodes:
       return len(totals), sorted(filter(lambda n: totals[n]/len(scans) >= percentile, totals))
 
   def rolling_core(self, backcheck: int, percentile: float = 0.9, 
-      invert: bool = False, concurrency: int = mp.cpu_count()):
+      invert: bool = False):
     """
-    Returns iterable of daily core nodes based on the previous backcheck
+    Generator that returns daily core nodes based on the previous backcheck
     days, where a core node is one which has appeared in percentile% of scans
     in the rolling backcheck period.
     Yields tuples of the format:
@@ -92,31 +109,13 @@ class CoreNodes:
     core_start = start_dt
     core_end = start_dt + datetime.timedelta(days=backcheck-1)
     # print(core_start, core_end)
-
-    # jobs: a list of tuples containing inputs for self.core()
-    jobs = []
-    # res: a list of lists containing (start, end) for each job
-    res = []
-
     # slide the window along
     while core_end <= end_dt:
-      jobs.append((self, "core", (core_start.date().isoformat(),
-          core_end.date().isoformat(), percentile, invert,),))
-      res.append([core_start, core_end])
-      # totalnodes, core = self.core(core_start.date().isoformat(), 
-      #   core_end.date().isoformat(), percentile=percentile, invert = invert)
-      # yield (core_start, core_end, totalnodes, core)
+      totalnodes, core = self.core(core_start.date().isoformat(), 
+        core_end.date().isoformat(), percentile=percentile, invert = invert)
+      yield (core_start, core_end, totalnodes, core)
       core_start += datetime.timedelta(days=1)
       core_end += datetime.timedelta(days=1)
-    
-    # Compute each window concurrently
-    with mp.Pool(processes=concurrency) as p:
-      # map workers onto jobs
-      for i, r in enumerate(p.map(instancemethod_worker, jobs)):
-        res[i] += list(r)
-        # res[i] = tuple(res[i])
-
-    return res
 
   # def _build_node_scanmap(self):
     # logging.info("Building node -> scans map")
