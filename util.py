@@ -3,22 +3,24 @@
 import os
 import re
 import pyasn
+import pickle
+import bisect
 import logging
 import doctest
 import itertools
 import ipaddress
 import multiprocessing as mp
 
-from datetime import datetime, timedelta
 from collections import Counter
+from datetime import datetime, timedelta
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-ASN_DB_FNAME = "ipasn_{}.dat"
+ASN_DB_FNAME = "ipasn.dat.gz"
 IPASN_DIR = os.path.join(SCRIPT_DIR, "asn")
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.WARNING
 
 DEFAULT_CONCURRENCY = max(1, mp.cpu_count() - 2)
 
@@ -35,7 +37,7 @@ def asn_db(date: str = None):
     logging.warning("No date specified for ASN DB, using %s", date)
   if date not in __asn_db:
     # IPASN not loaded -- load it now
-    path = os.path.join(IPASN_DIR, ASN_DB_FNAME.format(date.replace("-", "")))
+    path = os.path.join(IPASN_DIR, date, ASN_DB_FNAME)
     logging.info("Loading IPASN database %s", path)
     try:
       __asn_db[date] = pyasn.pyasn(path)
@@ -148,8 +150,8 @@ def ip2asn(ip: str, date: str = None):
     if asn[0] is None:
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)
     return asn[0]
-  except:
-    logging.error("util.ip2asn: error resolving ASN for IP %s", ip)
+  except Exception as ex:
+    logging.error("util.ip2asn: error resolving ASN for IP %s: %s", ip, ex)
     return None
 
 def geoip(ip):
@@ -190,6 +192,26 @@ def read_pickle(pickle_fname):
 def write_pickle(data, pickle_fname):
   with open(pickle_fname, 'wb') as outf:
     pickle.dump(data, outf)
+
+def values_in_range(l, start, end):
+  """
+  Returns a slice of the list l containing all values greater than or equal to
+  start and less than or equal to end. i.e., all values of l in [start, end]
+  >>> values_in_range([1,2,3,4,5], 2, 4)
+  [2, 3, 4]
+  >>> values_in_range([1,2,3,4,5], 0, 4)
+  [1, 2, 3, 4]
+  >>> values_in_range([1,2,3,4,5], 5, 6)
+  [5]
+  >>> values_in_range([1,2,3,4,5], 7, 10)
+  []
+  """
+  l = sorted(l)
+  i = bisect.bisect_left(l, start)
+  j = bisect.bisect_right(l, end)
+  if i == len(l) or not j:
+    return []
+  return l[i:j]
 
 if __name__ == "__main__":
     doctest.testmod()
