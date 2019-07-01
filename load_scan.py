@@ -110,6 +110,11 @@ class LoadBtcScan(LoadScan):
             return []
         df = ds.address_ipinfos
         reachable = df[df["proto_reachable"] == True]["address"]
+        if reachable is None or len(reachable) == 0:
+            logging.warning("Empty nodeset for scan %s %s",
+                    self.filedt(self.scanpath),
+                    self.scanpath)
+            return []
         return sorted(util.parse_ip_port_pair(n) for n in reachable.tolist())
 
 class LoadLtcScan(LoadBtcScan):
