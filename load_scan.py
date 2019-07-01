@@ -108,8 +108,9 @@ class LoadBtcScan(LoadScan):
                     self.filedt(self.scanpath),
                     self.scanpath)
             return []
-        return list(map(util.parse_ip_port_pair,
-                        ds.address_ipinfos["address"].tolist()))
+        df = ds.address_ipinfos
+        reachable = df[df["proto_reachable"] == True]["address"]
+        return sorted(util.parse_ip_port_pair(n) for n in reachable.tolist())
 
 class LoadLtcScan(LoadBtcScan):
     pass
