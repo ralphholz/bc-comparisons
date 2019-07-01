@@ -151,7 +151,7 @@ def ip2asn(ip: str, date: str = None):
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)
     return asn[0]
   except Exception as ex:
-    logging.error("util.ip2asn: error resolving ASN for IP %s: %s", ip, e)
+    logging.error("util.ip2asn: error resolving ASN for IP %s: %s", ip, ex)
     return None
 
 def geoip(ip):
