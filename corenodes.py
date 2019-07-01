@@ -16,7 +16,7 @@ class CoreNodes:
   def __init__(self, date_nodes: dict):
     if len(date_nodes) == 0:
       raise ValueError("date_nodes must be non-empty")
-    self.data = {k: collections.Counter(set(v)) for k, v in date_nodes.items()}
+    self.data = {k: list(set(v)) for k, v in date_nodes.items()}
     self.scandates = sorted(self.data.keys())
     self.__nodecount_range_cache = {}
     # self.__scan_ids = {date: i for i, date in enumerate(self.scandates)}
@@ -43,30 +43,30 @@ class CoreNodes:
       # Find scan range for dates
       scans = self.scans_in_range(start_date, end_date)
 
-      # Check if one day back is in the cache (useful because we use +1day sliding windows)
-      prev_start = (start_dt - datetime.timedelta(days=1)).date().isoformat()
-      prev_end = (end_dt - datetime.timedelta(days=1)).date().isoformat()
+      # # Check if one day back is in the cache (useful because we use +1day sliding windows)
+      # prev_start = (start_dt - datetime.timedelta(days=1)).date().isoformat()
+      # prev_end = (end_dt - datetime.timedelta(days=1)).date().isoformat()
 
-      if (prev_start, prev_end) in self.__nodecount_range_cache:
-        scans_prev = self.scans_in_range(prev_start, prev_end)
-        prev_totals = self.__nodecount_range_cache[(prev_start, prev_end)]
-        to_subtract = set(scans_prev) - set(scans)
-        to_add = set(scans) - set(scans_prev)
+      # if (prev_start, prev_end) in self.__nodecount_range_cache:
+      #   scans_prev = self.scans_in_range(prev_start, prev_end)
+      #   prev_totals = self.__nodecount_range_cache[(prev_start, prev_end)]
+      #   to_subtract = set(scans_prev) - set(scans)
+      #   to_add = set(scans) - set(scans_prev)
 
-        new_totals = collections.Counter() + prev_totals
-        for scan in to_subtract:
-          new_totals -= self.data[scan]
-        for scan in to_add:
-          new_totals += self.data[scan]
-        self.__nodecount_range_cache[(start_date, end_date)] = new_totals
+      #   new_totals = collections.Counter() + prev_totals
+      #   for scan in to_subtract:
+      #     new_totals -= self.data[scan]
+      #   for scan in to_add:
+      #     new_totals += self.data[scan]
+      #   self.__nodecount_range_cache[(start_date, end_date)] = new_totals
 
       # If not, we really do need to compute it from scratch, unfortunately
-      else:
-        # Count occurrences of each node in each scan in the range
-        totals = collections.Counter()
-        for scan in scans:
-          totals += self.data[scan]
-        self.__nodecount_range_cache[(start_date, end_date)] = totals
+      # else:
+      # Count occurrences of each node in each scan in the range
+      totals = []
+      for scan in scans:
+        totals += self.data[scan]
+      self.__nodecount_range_cache[(start_date, end_date)] = collections.Counter(totals)
     return self.__nodecount_range_cache[(start_date, end_date)]
 
   def core(self, start_date, end_date, percentile = 0.9, invert: bool = False):
