@@ -90,7 +90,7 @@ class CoreNodes:
       return len(totals), sorted(filter(lambda n: totals[n]/len(scans) >= percentile, totals))
 
   def rolling_core(self, backcheck: int, percentile: float = 0.9, 
-      invert: bool = False):
+      invert: bool = False, dates_only: bool = False):
     """
     Generator that returns daily core nodes based on the previous backcheck
     days, where a core node is one which has appeared in percentile% of scans
@@ -98,6 +98,8 @@ class CoreNodes:
     Yields tuples of the format:
     (start_date:datetime, end_date:datetime, 
      total_number_of_nodes_in_window:int, sorted_list_of_nodes:list)
+    If dates_only is True, doesn't compute the actual core nodes, just yields
+    the rolling dates for each core node period.
     """
     start = self.scandates[0]
     end = self.scandates[-1]
@@ -111,8 +113,11 @@ class CoreNodes:
     # print(core_start, core_end)
     # slide the window along
     while core_end <= end_dt:
-      totalnodes, core = self.core(core_start.date().isoformat(), 
-        core_end.date().isoformat(), percentile=percentile, invert = invert)
+      if not dates_only:
+        totalnodes, core = self.core(core_start.date().isoformat(), 
+          core_end.date().isoformat(), percentile=percentile, invert = invert)
+      else:
+        totalnodes, core = None, None
       yield (core_start, core_end, totalnodes, core)
       core_start += datetime.timedelta(days=1)
       core_end += datetime.timedelta(days=1)
