@@ -3,6 +3,7 @@
 import os
 import re
 import pyasn
+import pickle
 import bisect
 import logging
 import doctest

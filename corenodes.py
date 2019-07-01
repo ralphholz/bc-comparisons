@@ -18,7 +18,7 @@ class CoreNodes:
       raise ValueError("date_nodes must be non-empty")
     self.data = {k: collections.Counter(set(v)) for k, v in date_nodes.items()}
     self.scandates = sorted(self.data.keys())
-    self.__nodecount_range_cache = {}
+    self._nodecount_range_cache = {}
     # self.__scan_ids = {date: i for i, date in enumerate(self.scandates)}
     # self.backcheck_t = backcheck_t
     # # first date in our rolling range will be 
@@ -39,7 +39,7 @@ class CoreNodes:
     start_dt = util.str2dt(start_date)
     end_dt = util.str2dt(end_date)
     # Cache results for efficiency
-    if (start_date, end_date) not in self.__nodecount_range_cache:
+    if (start_date, end_date) not in self._nodecount_range_cache:
       # Find scan range for dates
       scans = self.scans_in_range(start_date, end_date)
 
@@ -47,9 +47,9 @@ class CoreNodes:
       prev_start = (start_dt - datetime.timedelta(days=1)).date().isoformat()
       prev_end = (end_dt - datetime.timedelta(days=1)).date().isoformat()
 
-      if (prev_start, prev_end) in self.__nodecount_range_cache:
+      if (prev_start, prev_end) in self._nodecount_range_cache:
         scans_prev = self.scans_in_range(prev_start, prev_end)
-        prev_totals = self.__nodecount_range_cache[(prev_start, prev_end)]
+        prev_totals = self._nodecount_range_cache[(prev_start, prev_end)]
         to_subtract = set(scans_prev) - set(scans)
         to_add = set(scans) - set(scans_prev)
 
@@ -58,7 +58,7 @@ class CoreNodes:
           new_totals -= self.data[scan]
         for scan in to_add:
           new_totals += self.data[scan]
-        self.__nodecount_range_cache[(start_date, end_date)] = new_totals
+        self._nodecount_range_cache[(start_date, end_date)] = new_totals
 
       # If not, we really do need to compute it from scratch, unfortunately
       else:
@@ -66,8 +66,8 @@ class CoreNodes:
         totals = collections.Counter()
         for scan in scans:
           totals += self.data[scan]
-        self.__nodecount_range_cache[(start_date, end_date)] = totals
-    return self.__nodecount_range_cache[(start_date, end_date)]
+        self._nodecount_range_cache[(start_date, end_date)] = totals
+    return self._nodecount_range_cache[(start_date, end_date)]
 
   def core(self, start_date, end_date, percentile = 0.9, invert: bool = False):
     """
