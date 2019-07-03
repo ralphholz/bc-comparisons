@@ -6,3 +6,6 @@ rib*.bz2
 asn/*.bz2*
 asn/*.dat*
 asn/dates_to_download
+ipv4only.csv
+ip2location.sqlite
+__pycache__
