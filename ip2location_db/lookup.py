@@ -34,6 +34,7 @@ USAGE_TYPE = {
   "CDN": "Content Delivery Network",
   "ISP": "Fixed Line ISP",
   "MOB": "Mobile ISP",
+  "ISP/MOB": "Mobile ISP",
   "DCH": "Data Center/Web Hosting/Transit",
   "SES": "Search Engine Spider",
   "RSV": "Reserve",
