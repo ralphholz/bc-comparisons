@@ -126,7 +126,9 @@ class YethiScansLoader(ScansLoader):
         return util.yethi_scanfile_dt(scanfile)
 
     def _list_scanfiles(self):
-        return glob.glob(path.join(self.scans_dir, self.FILE_GLOB))
+        return list(map(util.yethi_scanpath,
+                        glob.glob(path.join(self.scans_dir,
+                                            self.FILE_GLOB))))
 
 
 class BtcScansLoader(ScansLoader):
@@ -140,13 +142,18 @@ class BtcScansLoader(ScansLoader):
             glob.glob(path.join(self.scans_dir, self.FILE_GLOB))))
 
 
+# LTC and Dash use same format as Bitcoin
 class LtcScansLoader(BtcScansLoader):
+    pass
+
+class DashScansLoader(BtcScansLoader):
     pass
 
 FORMAT_LOADERS = {
     "Yethi": YethiScansLoader,
     "BTC": BtcScansLoader,
     "LTC": LtcScansLoader,
+    "Dash":  DashScansLoader,
 }
 
 if __name__ == "__main__":

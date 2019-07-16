@@ -21,10 +21,20 @@ import util
 class LoadScan:
     NODE_PART_SEP = ":"
 
-    def __init__(self, scan_path):
+    def __init__(self, scan_path, preload_uncontactable=False):
         self.scanpath = scan_path
         logging.info("Loading nodes from %s", self.scanpath)
         self.nodes = self._read_nodes()
+        if preload_uncontactable:
+            self._uncontactable_nodes = self._read_uncontactable_nodes()
+        else:
+            self._uncontactable_nodes = None
+
+    @property
+    def uncontactable_nodes(self):
+        if not self._uncontactable_nodes:
+            self._uncontactable_nodes = self._read_uncontactable_nodes()
+        return self._uncontactable_nodes
 
     def dedupe(self):
         """Removes duplicate nodes (non-order-preserving)"""
@@ -46,8 +56,15 @@ class LoadScan:
     def _read_nodes(self):
         raise NotImplementedError
 
+    def _read_uncontactable_nodes(self):
+        raise NotImplementedError
+
 
 class LoadYethiScan(LoadScan):
+    def __init__(self, scan_path):
+        super().__init__(scan_path)
+        self.scanpath = util.yethi_scanpath(scan_path)
+
     def filedt(self, scanfile):
         return util.yethi_scanfile_dt(scanfile)
 
@@ -72,7 +89,16 @@ class LoadYethiScan(LoadScan):
 
     def _read_nodes(self):
         nodes = []
-        with lzma.open(self.scanpath, "rt") as f:
+        with lzma.open(path.join(self.scanpath, "confirmed.csv.xz"), "rt") as f:
+            for l in f:
+                values = l.strip().replace(":", ";").split(";")
+                nodes.append(tuple(values))
+        return nodes
+
+    def _read_uncontactable_nodes(self):
+        nodes = []
+        # TODO: replace with actual path for uncontactable nodes
+        with lzma.open(path.join(self.scanpath, "TODO"), "rt") as f:
             for l in f:
                 values = l.strip().replace(":", ";").split(";")
                 nodes.append(tuple(values))
@@ -117,13 +143,35 @@ class LoadBtcScan(LoadScan):
             return []
         return sorted(util.parse_ip_port_pair(n) for n in reachable.tolist())
 
+    def _read_uncontactable_nodes(self):
+        ds = Dataset()
+        ds.load(self.scanpath.rstrip("/"))
+        if ds.address_ipinfos is None:
+            logging.warning("Empty uncontactable nodeset for scan %s %s",
+                    self.filedt(self.scanpath),
+                    self.scanpath)
+            return []
+        df = ds.address_ipinfos
+        reachable = df[df["proto_reachable"] == False]["address"]
+        if reachable is None or len(reachable) == 0:
+            logging.warning("Empty uncontactable nodeset for scan %s %s",
+                    self.filedt(self.scanpath),
+                    self.scanpath)
+            return []
+        return sorted(util.parse_ip_port_pair(n) for n in reachable.tolist())
+
+# LTC and Dash use same scan file format as Bitcoin
 class LoadLtcScan(LoadBtcScan):
+    pass
+
+class LoadDashScan(LoadBtcScan):
     pass
 
 FORMAT_LOADERS = {
     "Yethi": LoadYethiScan,
     "BTC": LoadBtcScan,
     "LTC": LoadLtcScan,
+    "Dash": LoadDashScan,
 }
 
 if __name__ == "__main__":
