@@ -24,6 +24,9 @@ LOG_LEVEL = logging.WARNING
 
 DEFAULT_CONCURRENCY = max(1, mp.cpu_count() - 2)
 
+# Regexp matches paths ending with a number, e.g. /foo/12345/ or /foo/1234
+YETHI_TS_DIR = re.compile("[0-9]+/*$")
+
 __asn_db = {}
 
 def asn_db(date: str = None):
@@ -97,8 +100,37 @@ def is_ipv4(ip: str):
     except:
         return False
 
+def yethi_scanpath(scanfile: str):
+    """
+    Takes a path to a Yethi scan dir or a file in that dir, and returns the
+    path to the dir of the corresponding Yethi scan.
+
+    >>> yethi_scanpath("/test-yethi/1557741601/confirmed.csv.xz")
+    '/test-yethi/1557741601'
+    """
+    if YETHI_TS_DIR.match(os.path.basename(scanfile)):
+        return scanfile.rstrip("/")
+    return os.path.dirname(scanfile)
+
 def yethi_scanfile_dt(scanfile: str):
-    return datetime.utcfromtimestamp(int(scanfile.split("/")[-2].strip()))
+    """
+    Takes a path to a Yethi scan and returns a Datetime object representing
+    the time of the scan (from the timestamp in the path).
+
+    >>> yethi_scanfile_dt("/test-yethi/1557741601")
+    datetime.datetime(2019, 5, 13, 10, 0, 1)
+
+    >>> yethi_scanfile_dt("/test-yethi/1557741601/")
+    datetime.datetime(2019, 5, 13, 10, 0, 1)
+
+    >>> yethi_scanfile_dt("/test-yethi/1557741601/confirmed.csv.xz")
+    datetime.datetime(2019, 5, 13, 10, 0, 1)
+    """
+    if YETHI_TS_DIR.match(os.path.basename(scanfile)):
+        unixtime = int(os.path.basename(scanfile))
+    else:
+        unixtime = int(os.path.basename(os.path.dirname(scanfile)))
+    return datetime.utcfromtimestamp(unixtime)
 
 def btc_scanfile_dt(scanfile: str):
     dirname = scanfile.rstrip("/").split("/")[-1].strip()
