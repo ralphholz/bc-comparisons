@@ -199,11 +199,15 @@ class LoadLtcScan(LoadBtcScan):
 class LoadDashScan(LoadBtcScan):
     pass
 
+class LoadZecScan(LoadBtcScan):
+    pass
+
 FORMAT_LOADERS = {
     "Yethi": LoadYethiScan,
     "BTC": LoadBtcScan,
     "LTC": LoadLtcScan,
     "Dash": LoadDashScan,
+    "ZEC": LoadZecScan,
 }
 
 if __name__ == "__main__":
