@@ -18,6 +18,7 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 ASN_DB_FNAME = "ipasn.dat.gz"
 IPASN_DIR = os.path.join(SCRIPT_DIR, "asn")
+IPASN6_DIR = os.path.join(SCRIPT_DIR, "asn")
 
 LOG_FMT = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
 LOG_LEVEL = logging.WARNING
@@ -28,6 +29,7 @@ DEFAULT_CONCURRENCY = max(1, mp.cpu_count() - 2)
 YETHI_TS_DIR = re.compile("[0-9]+/*$")
 
 __asn_db = {}
+__asn6_db = {}
 
 def asn_db(date: str = None):
   """
@@ -41,13 +43,20 @@ def asn_db(date: str = None):
   if date not in __asn_db:
     # IPASN not loaded -- load it now
     path = os.path.join(IPASN_DIR, date, ASN_DB_FNAME)
-    logging.info("Loading IPASN database %s", path)
+    path6 = os.path.join(IPASN6_DIR, date, ASN_DB_FNAME)
+    logging.info("Loading IPASN IPv4 database %s", path)
+    logging.info("Loading IPASN IPv6 database %s", path6)
     try:
       __asn_db[date] = pyasn.pyasn(path)
     except OSError as e:
-      logging.error("Could not load IPASN database %s", path)
+      logging.error("Could not load IPASN IPv4 database %s", path)
       raise e
-  return __asn_db[date]
+    try:
+      __asn6_db[date] = pyasn.pyasn(path6)
+    except OSError as e:
+      logging.error("Could not load IPASN IPv6 database %s", path6)
+      raise e
+  return __asn_db[date], __asn6_db[date]
 
 def time2dt(timestr:str, daystr:str):
     """timestr should be 24-hour time string in format HH:MM:SS
@@ -177,8 +186,11 @@ def ip2asn(ip: str, date: str = None):
   Return AS number for IP address on a given date (YYYY-MM-DD)
   """
   try:
-    asndb = asn_db(date)
-    asn = asndb.lookup(ip)
+    asndb, asndb6 = asn_db(date)
+    if is_ipv4(ip):
+      asn = asndb.lookup(ip)
+    else:
+      asn = asndb6.lookup(ip)
     if asn[0] is None:
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)
     return asn[0]
