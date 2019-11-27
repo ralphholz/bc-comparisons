@@ -63,6 +63,14 @@ class LoadScan:
             self.uncontactable_nodes = list(filter(lambda n: util.is_ipv4(self.node_ip(n)),
                                                    self.uncontactable_nodes))
     
+    def drop_ipv4(self):
+        """Removes any node with an IPv4 address"""
+        self.nodes = list(filter(lambda n: !util.is_ipv4(self.node_ip(n)),
+                                 self.nodes))
+        if self.uncontactable_nodes:
+            self.uncontactable_nodes = list(filter(lambda n: !util.is_ipv4(self.node_ip(n)),
+                                                   self.uncontactable_nodes))
+    
     def filedt(self, scanfile):
         """Extract UTC datetime from given scan file path"""
         raise NotImplementedError

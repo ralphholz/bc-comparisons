@@ -35,6 +35,9 @@ if __name__ == "__main__":
       help="Delimiter to use for lists within a field (; by default)")
     parser.add_argument("--keep-ipv6", "-k6", action="store_true",
       help="If specified, node IPv6 addresses will be kept in output.")
+    parser.add_argument("--only-ipv6", "-v6", action="store_true",
+      help="If specified, only IPv6 addresses will be included (provided "
+           "that --omit-ip is not specified).")
 
     parser.add_argument("--concurrency", "-j", type=int, default=util.DEFAULT_CONCURRENCY,
       help="Number of MP workers to use for reading scanfiles concurrently."
@@ -90,6 +93,8 @@ if __name__ == "__main__":
         loader = loader_cls(scanfile)
         if not ARGS.keep_ipv6:
             loader.drop_ipv6()
+        if ARGS.only_ipv6:
+            loader.drop_ipv4()
         return loader.nodes
 
     def writerow(row):
