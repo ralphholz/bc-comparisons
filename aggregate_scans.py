@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # local vars
     def load(scanfile: str):
         loader = loader_cls(scanfile)
-        if not ARGS.keep_ipv6:
+        if not ARGS.keep_ipv6 and not ARGS.only_ipv6:
             loader.drop_ipv6()
         if ARGS.only_ipv6:
             loader.drop_ipv4()
