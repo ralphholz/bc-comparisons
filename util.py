@@ -190,7 +190,7 @@ def ip2asn(ip: str, date: str = None):
     if is_ipv4(ip):
       asn = asndb.lookup(ip)
     else:
-      asn = asndb6.lookup(ip)
+      asn = asndb6.lookup(ip.strip("[]"))
     if asn[0] is None:
       logging.debug("util.ip2asn: unknown ASN for IP %s", ip)
     return asn[0]
