@@ -185,7 +185,7 @@ if __name__ == "__main__":
     parser.add_argument("--campaigns", "-c", action="store_true",
       help="If given, normal output is suppressed. Instead, the script outputs "
            "start and end dates for each campaign.")
-    parser.add_argument("--campaign-dist", "-cd", default=4,
+    parser.add_argument("--campaign-dist", "-cd", default=4, type=int,
       help="Scans more than this number of days apart will be considered "
            "to be separate campaigns. Default value is 4.")
 
