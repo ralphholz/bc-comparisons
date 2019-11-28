@@ -185,6 +185,9 @@ if __name__ == "__main__":
     parser.add_argument("--campaigns", "-c", action="store_true",
       help="If given, normal output is suppressed. Instead, the script outputs "
            "start and end dates for each campaign.")
+    parser.add_argument("--campaign-dist", "-cd", default=4,
+      help="Scans more than this number of days apart will be considered "
+           "to be separate campaigns. Default value is 4.")
 
     # Required args
     parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
@@ -222,7 +225,7 @@ if __name__ == "__main__":
 
     # Produce output
     if ARGS.campaigns:
-        camp = loader.campaigns()
+        camp = loader.campaigns(ARGS.campaign_dist)
         for c in camp:
             writer.writerow(c)
     elif ARGS.each_scan:
