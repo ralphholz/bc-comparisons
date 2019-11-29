@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
         for sf in scanfiles:
             l = loader_cls(sf)
-            res, err = l.integrity_check()
+            res, err = l.integrity_pass, l.integrity_err
             if not res:
                 writerow(("FAIL", l.filedt(l.scanpath), sf, err,))
             else:

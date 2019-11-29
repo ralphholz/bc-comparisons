@@ -24,11 +24,26 @@ class LoadScan:
 
     def __init__(self, scan_path):
         self.scanpath = scan_path
-        logging.info("Loading nodes from %s", self.scanpath)
-        # Immediately load confirmed nodes, but don't load uncontactable
-        # until someone calls .load_uncontactable()
-        self.nodes = self._read_nodes()
-        self.uncontactable_nodes = None
+        self.integrity_pass, self.integrity_err = self._integrity_check(preload=True)
+
+        if not self.integrity_pass:
+            logging.warning("Scan %s failed pre-load integrity check! Reason: %s",
+                    self.scanpath, self.integrity_err)
+            self.nodes = []
+            self.uncontactable_nodes = None
+        else:
+            logging.info("Loading nodes from %s", self.scanpath)
+            # Immediately load confirmed nodes, but don't load uncontactable
+            # until someone calls .load_uncontactable()
+            try:
+                self.nodes = self._read_nodes()
+            except:
+                self.nodes = []
+            self.uncontactable_nodes = None
+            self.integrity_pass, self.integrity_err = self._integrity_check(preload=False)
+            if not self.integrity_pass:
+                logging.warning("Scan %s failed post-load integrity check! Reason: %s",
+                        self.scanpath, self.integrity_err)
 
     def load_uncontactable(self):
         """
@@ -82,10 +97,13 @@ class LoadScan:
     def _read_uncontactable_nodes(self):
         raise NotImplementedError
 
-    def integrity_check(self):
+    def _integrity_check(self, preload=False):
         """
+        preload: should be False if calling integrity_check before _read_nodes
+
         Returns (True, None) if scan appears to be intact, otherwise 
         returns (False, str) with an error string.
+        
         """
         raise NotImplementedError
 
@@ -116,7 +134,7 @@ class LoadYethiScan(LoadScan):
     def node_ip(self, node):
         return node[1]
 
-    def integrity_check(self):
+    def _integrity_check(self, preload=True):
         NB_MIN_EXPECTED_FILES = 11
         NB_MIN_NODES = 5
         # scan directory must exist and be a directory
@@ -125,15 +143,15 @@ class LoadYethiScan(LoadScan):
         # scan must contain at least NB_MIN_EXPECTED_FILES
         if len(os.listdir(self.scanpath)) < NB_MIN_EXPECTED_FILES:
             return False, "Scan missing files"
-        # should be able to read at least the first line of every xz file
+        # should be able to read every xz file
         try:
             for xz in os.walk(path.join(self.scanpath, "*.xz")):
                 with lzma.open(xz) as xzf:
-                    xzf.readline()
+                    xzf.read()
         except:
-            return False, "Couldn't read first line of every xz"
+            return False, "Couldn't read every xz"
         # scan must contain more than MIN_NODES confirmed nodes
-        if len(self.nodes) < NB_MIN_NODES:
+        if not preload and len(self.nodes) < NB_MIN_NODES:
             return False, "Less than {} contactable nodes".format(NB_MIN_NODES)
         # all checks passed
         return True, None
@@ -198,7 +216,7 @@ class LoadBtcScan(LoadScan):
             self.__empty = True
         self.__df = ds.address_ipinfos
 
-    def integrity_check(self):
+    def _integrity_check(self, preload=True):
         NB_MIN_EXPECTED_FILES = 5
         NB_MIN_NODES = 5
         # scan directory must exist and be a directory
@@ -212,13 +230,12 @@ class LoadBtcScan(LoadScan):
             return False, "Missing 'done' file"
         # should be able to read at least the first line of every gz file
         try:
-            for gz in os.walk(path.join(self.scanpath, "*.gz")):
+            for gz in glob.glob(path.join(self.scanpath, "*.gz")):
                 with gzip.open(gz) as gzf:
-                    gzf.readline()
+                    gzf.read()
         except:
-            return False, "Couldn't read first line of every gz"
-        # scan must contain more than MIN_NODES confirmed nodes
-        if len(self.nodes) < NB_MIN_NODES:
+            return False, "Couldn't read every gz"
+        if not preload and len(self.nodes) < NB_MIN_NODES:
             return False, "Less than {} contactable nodes".format(NB_MIN_NODES)
         # all checks passed
         return True, None
@@ -309,17 +326,19 @@ if __name__ == "__main__":
 
     # Initialize correct loader for selected scanfile type
     loader_cls = FORMAT_LOADERS[ARGS.format]
-    loader = loader_cls(ARGS.scan_path)
 
     # If we're doing an integrity check only, then do that now
     if ARGS.integrity:
-        result, err = loader.integrity_check()
+        loader = loader_cls(ARGS.scan_path, )
+        result, err = loader.integrity_pass, loader.integrity_err
         if not result:
             writer.writerow(("FAIL", err,))
             sys.exit(1)
         else:
             writer.writerow(("PASS",))
             sys.exit(0)
+
+    loader = loader_cls(ARGS.scan_path)
     
     # Load uncontactable nodes if we're doing that
     if ARGS.uncontactable:
