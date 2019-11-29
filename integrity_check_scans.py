@@ -76,11 +76,12 @@ if __name__ == "__main__":
         date, scanfiles = date_scanfiles
 
         for sf in scanfiles:
-            res, err = loader_cls(sf).integrity_check()
+            l = loader_cls(sf)
+            res, err = l.integrity_check()
             if not res:
-                writerow(("FAIL", date, sf, err,))
+                writerow(("FAIL", l.filedt(l.scanpath), sf, err,))
             else:
-                writerow(("PASS", date, sf,))
+                writerow(("PASS", l.filedt(l.scanpath), sf,))
 
     # Load scans for each date
     with mp.Pool(ARGS.concurrency) as p:
