@@ -134,7 +134,7 @@ class LoadYethiScan(LoadScan):
             return False, "Couldn't read first line of every xz"
         # scan must contain more than MIN_NODES confirmed nodes
         if len(self.nodes) < NB_MIN_NODES:
-            return False, "Less than {} nodes".format(NB_MIN_NODES)
+            return False, "Less than {} contactable nodes".format(NB_MIN_NODES)
         # all checks passed
         return True, None
 
@@ -219,7 +219,7 @@ class LoadBtcScan(LoadScan):
             return False, "Couldn't read first line of every gz"
         # scan must contain more than MIN_NODES confirmed nodes
         if len(self.nodes) < NB_MIN_NODES:
-            return False, "Less than {} nodes".format(NB_MIN_NODES)
+            return False, "Less than {} contactable nodes".format(NB_MIN_NODES)
         # all checks passed
         return True, None
     
