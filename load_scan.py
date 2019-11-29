@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import sys
 import csv
@@ -81,6 +82,13 @@ class LoadScan:
     def _read_uncontactable_nodes(self):
         raise NotImplementedError
 
+    def integrity_check(self):
+        """
+        Returns (True, None) if scan appears to be intact, otherwise 
+        returns (False, str) with an error string.
+        """
+        raise NotImplementedError
+
 
 class LoadYethiScan(LoadScan):
     def __init__(self, scan_path):
@@ -107,6 +115,28 @@ class LoadYethiScan(LoadScan):
     
     def node_ip(self, node):
         return node[1]
+
+    def integrity_check(self):
+        NB_MIN_EXPECTED_FILES = 11
+        NB_MIN_NODES = 5
+        # scan directory must exist and be a directory
+        if not path.isdir(self.scanpath):
+            return False, "Scanpath not a dir"
+        # scan must contain at least NB_MIN_EXPECTED_FILES
+        if len(os.listdir(self.scanpath)) < NB_MIN_EXPECTED_FILES:
+            return False, "Scan missing files"
+        # should be able to read at least the first line of every xz file
+        try:
+            for xz in os.walk(path.join(self.scanpath, "*.xz")):
+                with lzma.open(xz) as xzf:
+                    xzf.readline()
+        except:
+            return False, "Couldn't read first line of every xz"
+        # scan must contain more than MIN_NODES confirmed nodes
+        if len(self.nodes) < NB_MIN_NODES:
+            return False, "Less than {} nodes".format(NB_MIN_NODES)
+        # all checks passed
+        return True, None
 
     def _read_nodes(self):
         """Reads contactable nodes from the Yethi scan data"""
@@ -167,6 +197,31 @@ class LoadBtcScan(LoadScan):
         if ds.address_ipinfos is None:
             self.__empty = True
         self.__df = ds.address_ipinfos
+
+    def integrity_check(self):
+        NB_MIN_EXPECTED_FILES = 5
+        NB_MIN_NODES = 5
+        # scan directory must exist and be a directory
+        if not path.isdir(self.scanpath):
+            return False, "Scanpath not a dir"
+        # scan must contain at least NB_MIN_EXPECTED_FILES
+        if len(os.listdir(self.scanpath)) < NB_MIN_EXPECTED_FILES:
+            return False, "Scan missing files"
+        # scan must contain "done" file
+        if not path.isfile(path.join(self.scanpath, "done")):
+            return False, "Missing 'done' file"
+        # should be able to read at least the first line of every gz file
+        try:
+            for gz in os.walk(path.join(self.scanpath, "*.gz")):
+                with gzip.open(gz) as gzf:
+                    gzf.readline()
+        except:
+            return False, "Couldn't read first line of every gz"
+        # scan must contain more than MIN_NODES confirmed nodes
+        if len(self.nodes) < NB_MIN_NODES:
+            return False, "Less than {} nodes".format(NB_MIN_NODES)
+        # all checks passed
+        return True, None
     
     def _read_nodes(self):
         self.__load_df()
@@ -234,6 +289,8 @@ if __name__ == "__main__":
       help="If specified, nodes will appear uniquely.")
     parser.add_argument("--uncontactable", "-uc", action="store_true",
       help="If specified, load uncontactable nodes instead.")
+    parser.add_argument("--integrity", "-i", action="store_true",
+      help="If specified, just test integrity of the scan.")
 
     # Required args
     parser.add_argument("--format", "-f", choices=list(FORMAT_LOADERS.keys()), 
@@ -253,6 +310,16 @@ if __name__ == "__main__":
     # Initialize correct loader for selected scanfile type
     loader_cls = FORMAT_LOADERS[ARGS.format]
     loader = loader_cls(ARGS.scan_path)
+
+    # If we're doing an integrity check only, then do that now
+    if ARGS.integrity:
+        result, err = loader.integrity_check()
+        if not result:
+            writer.writerow(("FAIL", err,))
+            sys.exit(1)
+        else:
+            writer.writerow(("PASS",))
+            sys.exit(0)
     
     # Load uncontactable nodes if we're doing that
     if ARGS.uncontactable:
